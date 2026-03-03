@@ -21,18 +21,16 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore AuraConnect-Windows/AuraConnect/AuraConnect.csproj
 
-      - name: Publish self-contained single-file .exe
+      - name: Publish self-contained .exe
         run: |
           dotnet publish AuraConnect-Windows/AuraConnect/AuraConnect.csproj `
             --configuration Release `
             --runtime win-x64 `
             --self-contained true `
-            -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:PublishTrimmed=false `
             --output ./publish
 
-      - name: Upload .exe artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: AuraConnect-Windows-x64
