@@ -11,12 +11,13 @@ using Windows.UI;
 namespace AuraConnect.Rendering;
 
 /// <summary>
-/// Port of AuraBackground.swift — Win2D CanvasAnimatedControl with dual-blob animation.
+/// Port of AuraBackground.swift — Win2D CanvasControl + DispatcherTimer at 30fps.
 /// Energy: 0.0 = idle, 1.0 = connected, 2.0 = sending.
 /// </summary>
 public sealed class AuraBackgroundRenderer : UserControl
 {
-    private CanvasAnimatedControl? _canvas;
+    private CanvasControl? _canvas;
+    private DispatcherTimer? _timer;
     private double _t;
 
     public static readonly DependencyProperty EnergyProperty =
@@ -31,44 +32,54 @@ public sealed class AuraBackgroundRenderer : UserControl
 
     public AuraBackgroundRenderer()
     {
-        _canvas = new CanvasAnimatedControl
-        {
-            TargetElapsedTime = TimeSpan.FromMilliseconds(1000.0 / 30.0), // 30 FPS
-            ClearColor = Colors.Black,
-            IsFixedTimeStep = true
-        };
+        _canvas = new CanvasControl();
         _canvas.Draw += OnDraw;
-        _canvas.Update += OnUpdate;
         Content = _canvas;
+
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
-    private void OnUpdate(ICanvasAnimatedControl sender, CanvasAnimatedUpdateEventArgs args)
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000.0 / 30.0) };
+        _timer.Tick += OnTick;
+        _timer.Start();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        _timer?.Stop();
+        _timer = null;
+    }
+
+    private void OnTick(object? sender, object e)
     {
         _t += 1.0 / 30.0;
+        _canvas?.Invalidate();
     }
 
-    private void OnDraw(ICanvasAnimatedControl sender, CanvasAnimatedDrawEventArgs args)
+    private void OnDraw(CanvasControl sender, CanvasDrawEventArgs args)
     {
         var ds = args.DrawingSession;
-        var size = sender.Size;
-        var w = (float)size.Width;
-        var h = (float)size.Height;
+        var w = (float)sender.ActualWidth;
+        var h = (float)sender.ActualHeight;
 
         if (w <= 0 || h <= 0) return;
 
-        var e = Math.Clamp(Energy, 0.0, 2.0);
+        var en = Math.Clamp(Energy, 0.0, 2.0);
 
         // Energy mapping (matches Swift exactly)
-        var drift = 0.10 + 0.06 * e;
-        var blur = (float)(20 - 4 * e);
-        var alphaA = 0.28 + 0.12 * e;
-        var alphaB = 0.22 + 0.10 * e;
-        var sweepOpacity = (float)(0.10 + 0.08 * e);
-        var sweepSpeed = 0.35 + 0.25 * e;
-        var sweepAmp = 160 + 120 * e;
+        var drift = 0.10 + 0.06 * en;
+        var blur = (float)(20 - 4 * en);
+        var alphaA = 0.28 + 0.12 * en;
+        var alphaB = 0.22 + 0.10 * en;
+        var sweepOpacity = (float)(0.10 + 0.08 * en);
+        var sweepSpeed = 0.35 + 0.25 * en;
+        var sweepAmp = 160 + 120 * en;
 
-        var a = 0.5 + 0.5 * Math.Sin(_t * (0.10 + 0.06 * e));
-        var b = 0.5 + 0.5 * Math.Cos(_t * (0.07 + 0.05 * e));
+        var a = 0.5 + 0.5 * Math.Sin(_t * (0.10 + 0.06 * en));
+        var b = 0.5 + 0.5 * Math.Cos(_t * (0.07 + 0.05 * en));
 
         // Blob colors
         var cA = Color.FromArgb(255,
@@ -84,6 +95,7 @@ public sealed class AuraBackgroundRenderer : UserControl
         ds.Clear(Colors.Black);
 
         // Create offscreen layer for blobs to apply blur
+        var size = new Windows.Foundation.Size(w, h);
         using var blobTarget = new CanvasRenderTarget(sender, size);
         using (var blobDs = blobTarget.CreateDrawingSession())
         {
@@ -91,21 +103,19 @@ public sealed class AuraBackgroundRenderer : UserControl
 
             // Blob centers
             var c1 = new Vector2(
-                (float)(w * (0.28 + drift * Math.Sin(_t * (0.28 + 0.10 * e)))),
-                (float)(h * (0.36 + drift * Math.Cos(_t * (0.22 + 0.10 * e))))
+                (float)(w * (0.28 + drift * Math.Sin(_t * (0.28 + 0.10 * en)))),
+                (float)(h * (0.36 + drift * Math.Cos(_t * (0.22 + 0.10 * en))))
             );
             var c2 = new Vector2(
-                (float)(w * (0.74 + drift * Math.Cos(_t * (0.20 + 0.10 * e)))),
-                (float)(h * (0.62 + drift * Math.Sin(_t * (0.26 + 0.12 * e))))
+                (float)(w * (0.74 + drift * Math.Cos(_t * (0.20 + 0.10 * en)))),
+                (float)(h * (0.62 + drift * Math.Sin(_t * (0.26 + 0.12 * en))))
             );
 
             var maxDim = Math.Max(w, h);
             var r1 = (float)(maxDim * (0.66 + 0.06 * Math.Sin(_t * 0.18)));
             var r2 = (float)(maxDim * (0.84 + 0.06 * Math.Cos(_t * 0.16)));
 
-            // Blob A
             DrawBlob(blobDs, sender, c1, r1, cA, (float)alphaA);
-            // Blob B
             DrawBlob(blobDs, sender, c2, r2, cB, (float)alphaB);
         }
 
@@ -134,14 +144,14 @@ public sealed class AuraBackgroundRenderer : UserControl
         ds.FillRectangle(0, 0, w, h, sweepBrush);
 
         // Noise overlay (subtle white)
-        ds.FillRectangle(0, 0, w, h, Color.FromArgb(7, 255, 255, 255)); // 0.028 opacity
+        ds.FillRectangle(0, 0, w, h, Color.FromArgb(7, 255, 255, 255));
 
         // Vignette
         using var vignetteBrush = new CanvasRadialGradientBrush(sender, new[]
         {
             new CanvasGradientStop { Position = 0f, Color = Colors.Transparent },
             new CanvasGradientStop { Position = 0.1f, Color = Colors.Transparent },
-            new CanvasGradientStop { Position = 1f, Color = Color.FromArgb(153, 0, 0, 0) } // 0.60
+            new CanvasGradientStop { Position = 1f, Color = Color.FromArgb(153, 0, 0, 0) }
         })
         {
             Center = new Vector2(w / 2, h / 2),
