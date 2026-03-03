@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="AuraConnect.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:rendering="using:AuraConnect.Rendering"
+    mc:Ignorable="d"
+    Title="AuraConnect">
+
+    <Grid Background="Black">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══ LEFT SIDEBAR ═══ -->
+        <Grid Grid.Column="0">
+            <!-- Deep lacquer background -->
+            <Border>
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#FF050506" Offset="0" />
+                        <GradientStop Color="#FF09090B" Offset="0.5" />
+                        <GradientStop Color="#FF050506" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Guilloché pattern overlay -->
+            <rendering:GuillocheRenderer RingCount="84" RingOpacity="0.42" RingLineWidth="0.55"
+                                         Opacity="0.7" IsHitTestVisible="False" />
+
+            <!-- Brushed sheen -->
+            <Border Opacity="0.55" IsHitTestVisible="False">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#00FFFFFF" Offset="0" />
+                        <GradientStop Color="#1AFFFFFF" Offset="0.5" />
+                        <GradientStop Color="#00FFFFFF" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Aura bloom (top-left glow) -->
+            <Border IsHitTestVisible="False">
+                <Border.Background>
+                    <RadialGradientBrush Center="0,0" RadiusX="0.8" RadiusY="0.8">
+                        <GradientStop Color="#281F9EFF" Offset="0" />
+                        <GradientStop Color="#00000000" Offset="1" />
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Sidebar gradient overlay -->
+            <Border IsHitTestVisible="False">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#6026262E" Offset="0" />
+                        <GradientStop Color="#600D0D0F" Offset="0.5" />
+                        <GradientStop Color="#601F1F24" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Sidebar content -->
+            <Grid Margin="14">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Header glass panel -->
+                <Border Grid.Row="0" CornerRadius="18" Padding="16" Margin="0,0,0,14"
+                        BorderThickness="1" BorderBrush="{StaticResource GlassBorderBrush}">
+                    <Border.Background>
+                        <AcrylicBrush TintColor="#000000" TintOpacity="0.65" FallbackColor="#09FFFFFF" />
+                    </Border.Background>
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="AuraConnect"
+                                   Style="{StaticResource AuraTitleStyle}"
+                                   Foreground="{StaticResource AuraBlueBrush}" />
+                        <TextBlock x:Name="StatusText"
+                                   Style="{StaticResource AuraBodyStyle}"
+                                   TextWrapping="Wrap"
+                                   MaxLines="2" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Navigation rail menu -->
+                <StackPanel Grid.Row="1" Spacing="2" Margin="0,4,0,0">
+                    <Button x:Name="NavDevices" Click="OnNavClick" Tag="Devices"
+                            Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE704;" FontSize="13" />
+                            <TextBlock Text="DEVICES" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavTransfer" Click="OnNavClick" Tag="Transfer"
+                            Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE896;" FontSize="13" />
+                            <TextBlock Text="TRANSFER DATA" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavUpdates" Click="OnNavClick" Tag="Updates"
+                            Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE895;" FontSize="13" />
+                            <TextBlock Text="SOFTWARE UPDATES" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavAiModules" Click="OnNavClick" Tag="AiModules"
+                            Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xF158;" FontSize="13" />
+                            <TextBlock Text="AURA AI MODULES" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavAccount" Click="OnNavClick" Tag="Account"
+                            Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE910;" FontSize="13" />
+                            <TextBlock Text="ACCOUNT" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavDataSecurity" Click="OnNavClick" Tag="DataSecurity"
+                            Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE72E;" FontSize="13" />
+                            <TextBlock Text="DATA SECURITY" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavLedgerUsage" Click="OnNavClick" Tag="LedgerUsage"
+                            Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE9D2;" FontSize="13" />
+                            <TextBlock Text="LEDGER USAGE" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavIdentity" Click="OnNavClick" Tag="Identity"
+                            Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE77B;" FontSize="13" />
+                            <TextBlock Text="IDENTITY" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavLogs" Click="OnNavClick" Tag="Logs"
+                            Style="{StaticResource NavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE8FD;" FontSize="13" />
+                            <TextBlock Text="LOGS" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Spacer -->
+                <Grid Grid.Row="2" />
+
+                <!-- Footer glass panel -->
+                <Border Grid.Row="3" CornerRadius="18" Padding="16"
+                        BorderThickness="1" BorderBrush="{StaticResource GlassBorderBrush}">
+                    <Border.Background>
+                        <AcrylicBrush TintColor="#000000" TintOpacity="0.65" FallbackColor="#09FFFFFF" />
+                    </Border.Background>
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Ellipse x:Name="ConnectionDot" Width="8" Height="8" Fill="Orange" />
+                            <TextBlock x:Name="ConnectionLabel" Text="NOT CONNECTED"
+                                       FontFamily="{StaticResource OxaniumFont}"
+                                       FontSize="12" FontWeight="Medium"
+                                       CharacterSpacing="50"
+                                       Foreground="#D9FFFFFF" />
+                        </StackPanel>
+                        <TextBlock Text="LOCAL-ONLY &#x2022; SECURE TRANSFER &#x2022; SIGNED UPDATES"
+                                   FontFamily="{StaticResource OxaniumFont}"
+                                   FontSize="11"
+                                   CharacterSpacing="45"
+                                   Foreground="#73FFFFFF" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Rail divider (right edge) -->
+            <Grid HorizontalAlignment="Right" Width="10" IsHitTestVisible="False">
+                <Rectangle Width="1" Fill="#1AFFFFFF" HorizontalAlignment="Center" />
+                <Rectangle Width="10" HorizontalAlignment="Center" Opacity="0.22">
+                    <Rectangle.Fill>
+                        <SolidColorBrush Color="{StaticResource AuraBlueColor}" />
+                    </Rectangle.Fill>
+                </Rectangle>
+            </Grid>
+        </Grid>
+
+        <!-- ═══ RIGHT: Detail Area ═══ -->
+        <Grid Grid.Column="1">
+            <!-- Animated background -->
+            <rendering:AuraBackgroundRenderer x:Name="BackgroundRenderer" Energy="0" />
+
+            <!-- Navigation frame -->
+            <Frame x:Name="ContentFrame" />
+
+            <!-- LedgerAI logo (top-right toolbar) -->
+            <Border HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,12,18,0"
+                    CornerRadius="12"
+                    Padding="14,7"
+                    BorderThickness="1">
+                <Border.Background>
+                    <AcrylicBrush TintColor="#000000" TintOpacity="0.5" FallbackColor="#09FFFFFF" />
+                </Border.Background>
+                <Border.BorderBrush>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#33FFFFFF" Offset="0" />
+                        <GradientStop Color="#4D1F9EFF" Offset="0.5" />
+                        <GradientStop Color="#14FFFFFF" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.BorderBrush>
+                <Image Source="ms-appx:///Assets/Images/ledgerai_logo.png"
+                       Height="30"
+                       Stretch="Uniform" />
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

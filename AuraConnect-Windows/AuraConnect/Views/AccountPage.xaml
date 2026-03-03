@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AuraConnect.Views.AccountPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <ScrollViewer Padding="18">
+        <StackPanel Spacing="16">
+
+            <!-- Header -->
+            <Border CornerRadius="18" Padding="16" BorderThickness="1"
+                    BorderBrush="{StaticResource GlassBorderBrush}">
+                <Border.Background>
+                    <AcrylicBrush TintColor="#000000" TintOpacity="0.65" FallbackColor="#09FFFFFF" />
+                </Border.Background>
+                <StackPanel Spacing="10">
+                    <TextBlock Text="ACCOUNT"
+                               FontFamily="{StaticResource OxaniumFont}"
+                               FontSize="20" FontWeight="SemiBold"
+                               CharacterSpacing="70"
+                               Foreground="#EBFFFFFF" />
+                    <TextBlock Text="View your $LEDGER balance and add funds via deposit or monthly invoicing (placeholders)."
+                               FontFamily="{StaticResource OxaniumFont}" FontSize="13"
+                               Foreground="{StaticResource TextDimBrush}"
+                               TextWrapping="Wrap" MaxLines="2" />
+                </StackPanel>
+            </Border>
+
+            <!-- Balance + Billing cards -->
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Balance Card -->
+                <Border Grid.Column="0" Style="{StaticResource AuraCardBorderStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="BALANCE"
+                                   FontFamily="{StaticResource OxaniumFont}"
+                                   FontSize="11" FontWeight="Medium" CharacterSpacing="55"
+                                   Foreground="#99FFFFFF" />
+                        <TextBlock x:Name="BalanceText" Text="125,000 $LEDGER"
+                                   FontFamily="{StaticResource OxaniumFont}"
+                                   FontSize="22" FontWeight="SemiBold"
+                                   Foreground="#EBFFFFFF" />
+                        <TextBlock Text="Placeholder account balance."
+                                   FontFamily="{StaticResource OxaniumFont}" FontSize="12"
+                                   Foreground="#8CFFFFFF" />
+                        <Button Style="{StaticResource AuraPillButtonStyle}" Content="ADD FUNDS"
+                                HorizontalAlignment="Left" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Billing Card -->
+                <Border Grid.Column="1" Style="{StaticResource AuraCardBorderStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="BILLING"
+                                   FontFamily="{StaticResource OxaniumFont}"
+                                   FontSize="11" FontWeight="Medium" CharacterSpacing="55"
+                                   Foreground="#99FFFFFF" />
+                        <ToggleSwitch x:Name="InvoiceToggle" Header="Invoice monthly (USD)"
+                                      IsOn="True" OnContent="" OffContent="" />
+                        <TextBlock Text="When enabled, usage is tracked and billed at month-end (placeholder)."
+                                   FontFamily="{StaticResource OxaniumFont}" FontSize="12"
+                                   Foreground="#8CFFFFFF" TextWrapping="Wrap" MaxLines="3" />
+                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+                            <TextBlock Text="USD"
+                                       FontFamily="{StaticResource OxaniumFont}"
+                                       FontSize="11" FontWeight="Medium" CharacterSpacing="50"
+                                       Foreground="#A6FFFFFF"
+                                       VerticalAlignment="Center" />
+                            <TextBox x:Name="UsdAmountBox" Text="250" Width="140"
+                                     FontFamily="{StaticResource OxaniumFont}"
+                                     FontSize="13" FontWeight="SemiBold"
+                                     TextAlignment="Right" />
+                            <Button Style="{StaticResource AuraPillButtonStyle}" Content="BILL ME" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Deposit Address Card -->
+            <Border Style="{StaticResource AuraCardBorderStyle}">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="DEPOSIT ADDRESS"
+                               FontFamily="{StaticResource OxaniumFont}"
+                               FontSize="11" FontWeight="Medium" CharacterSpacing="55"
+                               Foreground="#99FFFFFF" />
+                    <TextBlock Text="Send $LEDGER to this address to fund your account (placeholder)."
+                               FontFamily="{StaticResource OxaniumFont}" FontSize="12"
+                               Foreground="#8CFFFFFF" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border CornerRadius="12" Padding="10"
+                                Background="#0FFFFFFF"
+                                BorderBrush="#1AFFFFFF" BorderThickness="1">
+                            <TextBlock x:Name="DepositAddressText"
+                                       Text="LEDGER1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
+                                       FontFamily="{StaticResource OxaniumFont}"
+                                       FontSize="12" FontWeight="Medium"
+                                       Foreground="#D9FFFFFF"
+                                       IsTextSelectionEnabled="True"
+                                       TextTrimming="CharacterEllipsis" MaxLines="1" />
+                        </Border>
+                        <Button x:Name="CopyButton" Click="OnCopyClick"
+                                Style="{StaticResource AuraPillButtonStyle}" Content="COPY" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>

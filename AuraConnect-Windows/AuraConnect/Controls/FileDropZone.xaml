@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="AuraConnect.Controls.FileDropZone"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    AllowDrop="True"
+    DragOver="OnDragOver"
+    DragLeave="OnDragLeave"
+    Drop="OnDrop"
+    Height="150">
+
+    <Grid>
+        <Border x:Name="DropBorder"
+                CornerRadius="16"
+                Background="#0FFFFFFF"
+                BorderThickness="1"
+                Padding="18">
+            <Border.BorderBrush>
+                <SolidColorBrush x:Name="DropBorderBrush" Color="#401F9EFF" />
+            </Border.BorderBrush>
+        </Border>
+
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="10">
+
+            <FontIcon Glyph="&#xE896;"
+                      FontSize="22"
+                      Foreground="{StaticResource AuraBlueBrush}"
+                      HorizontalAlignment="Center" />
+
+            <TextBlock Text="DROP FILES HERE"
+                       FontFamily="{StaticResource OxaniumFont}"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       CharacterSpacing="60"
+                       Foreground="White"
+                       HorizontalAlignment="Center" />
+
+            <TextBlock Text="PDF &#x2022; WORD &#x2022; POWERPOINT &#x2022; EXCEL &#x2022; TEXT"
+                       FontFamily="{StaticResource OxaniumFont}"
+                       FontSize="12"
+                       CharacterSpacing="35"
+                       Foreground="#8CFFFFFF"
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AuraConnect.Views.TransferPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:AuraConnect.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <ScrollViewer Padding="18">
+        <StackPanel Spacing="16" MaxWidth="920">
+
+            <!-- Header bar with scan sweep -->
+            <controls:AuraHeaderBar x:Name="Header"
+                                    Title="SECURE TRANSFER"
+                                    Subtitle="Secure local transfer &#x2022; no cloud &#x2022; no Wi-Fi" />
+
+            <!-- Top bar: device picker + connect buttons -->
+            <Border CornerRadius="18" Padding="16" BorderThickness="1"
+                    BorderBrush="{StaticResource GlassBorderBrush}">
+                <Border.Background>
+                    <AcrylicBrush TintColor="#000000" TintOpacity="0.65" FallbackColor="#09FFFFFF" />
+                </Border.Background>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Text="TRANSFER"
+                                   Style="{StaticResource AuraSectionTitleStyle}" />
+                        <TextBlock x:Name="TransferHint"
+                                   Text="Choose a puck, connect, then send your queue."
+                                   Style="{StaticResource AuraBodyStyle}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="10" HorizontalAlignment="Right">
+                        <ComboBox x:Name="DevicePicker"
+                                  PlaceholderText="Select puck..."
+                                  MinWidth="260"
+                                  SelectionChanged="OnDeviceSelectionChanged" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                            <Button x:Name="ConnectButton" Click="OnConnectClick"
+                                    Style="{StaticResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE71B;" FontSize="13" />
+                                    <TextBlock Text="CONNECT" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="DisconnectButton" Click="OnDisconnectClick"
+                                    Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE711;" FontSize="13" />
+                                    <TextBlock Text="DISCONNECT" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="LockButton" Click="OnLockClick" IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE72E;" FontSize="13" />
+                                    <TextBlock Text="LOCK NOW" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Transfer panel -->
+            <Border CornerRadius="18" Padding="16" BorderThickness="1"
+                    BorderBrush="{StaticResource GlassBorderBrush}">
+                <Border.Background>
+                    <AcrylicBrush TintColor="#000000" TintOpacity="0.65" FallbackColor="#09FFFFFF" />
+                </Border.Background>
+                <StackPanel Spacing="12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="240" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="QUEUE"
+                                   FontFamily="{StaticResource OxaniumFont}"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   CharacterSpacing="50"
+                                   Foreground="White"
+                                   VerticalAlignment="Center" />
+
+                        <ProgressBar x:Name="OverallProgressBar" Grid.Column="2"
+                                     Minimum="0" Maximum="1" Value="0"
+                                     VerticalAlignment="Center" />
+                    </Grid>
+
+                    <!-- Drop zone -->
+                    <controls:FileDropZone x:Name="DropZone" />
+
+                    <!-- Send / Clear buttons -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" x:Name="SendButton" Click="OnSendClick"
+                                HorizontalAlignment="Stretch" Margin="0,0,5,0"
+                                Style="{StaticResource AccentButtonStyle}">
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xE724;" FontSize="13" />
+                                <TextBlock Text="SEND QUEUE" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="1" x:Name="ClearButton" Click="OnClearClick"
+                                HorizontalAlignment="Stretch" Margin="5,0,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xE74D;" FontSize="13" />
+                                <TextBlock Text="CLEAR" Style="{StaticResource AuraLabelStyle}" FontSize="13" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- Queue list -->
+                    <StackPanel x:Name="QueueListPanel" Spacing="10">
+                        <TextBlock x:Name="EmptyQueueLabel"
+                                   Text="NO FILES QUEUED."
+                                   FontFamily="{StaticResource OxaniumFont}"
+                                   FontSize="12" CharacterSpacing="40"
+                                   Foreground="#99FFFFFF"
+                                   Margin="0,6,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>
