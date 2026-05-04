@@ -237,65 +237,7 @@ final class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelega
             // brief gap between files
             try? await Task.sleep(nanoseconds: 120_000_000)
         }
-        
-        func peripheral(_ peripheral: CBPeripheral,
-                        didDiscoverCharacteristicsFor service: CBService,
-                        error: Error?) {
-            if let error = error {
-                status = "Characteristic discovery error: \(error.localizedDescription)"
-                return
-            }
 
-            guard let chars = service.characteristics else {
-                status = "No characteristics."
-                return
-            }
-
-            // Reset on each discovery pass
-            ctrlChar = nil
-            dataChar = nil
-
-            for c in chars {
-                if c.uuid == AURA_CTRL_UUID {
-                    ctrlChar = c
-                }
-                if c.uuid == AURA_DATA_UUID {
-                    dataChar = c
-                }
-            }
-
-            // Subscribe to CTRL notifications
-            if let ctrl = ctrlChar, ctrl.properties.contains(.notify) {
-                peripheral.setNotifyValue(true, for: ctrl)
-            }
-
-            // ---- DATA_PING (proof that DATA writes work) ----
-            if let d = dataChar {
-                let supportsWoR = d.properties.contains(.writeWithoutResponse)
-                let supportsWrite = d.properties.contains(.write)
-
-                let payload = Data("DATA_PING".utf8)
-                var frame = Data()
-                var n = UInt32(payload.count).littleEndian
-                withUnsafeBytes(of: &n) { frame.append(contentsOf: $0) }
-                frame.append(payload)
-
-                if supportsWoR {
-                    peripheral.writeValue(frame, for: d, type: .withoutResponse)
-                } else if supportsWrite {
-                    peripheral.writeValue(frame, for: d, type: .withResponse)
-                }
-            }
-
-            // Final state
-            if ctrlChar != nil && dataChar != nil {
-                status = "Connected. Ready to send."
-            } else {
-                status = "Missing ctrl/data characteristic on puck."
-            }
-        }
-
-        
         status = "All transfers complete."
     }
 
@@ -365,9 +307,16 @@ final class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelega
         for url in urls {
             guard url.isFileURL else { continue }
 
+            // Security-scoped access needed for files from drag-and-drop
+            let accessing = url.startAccessingSecurityScopedResource()
+
             let name = url.lastPathComponent
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue ?? 0
-            if size <= 0 { continue }
+            if size <= 0 {
+                print("[AuraConnect] Skipping \(name): size=0 (access denied?)")
+                if accessing { url.stopAccessingSecurityScopedResource() }
+                continue
+            }
 
             let sha = (try? sha256Hex(of: url)) ?? ""
             let fileID = UUID().uuidString.lowercased()
@@ -381,6 +330,7 @@ final class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelega
                 sentBytes: 0,
                 status: "Queued"
             ))
+            // Note: don't stop accessing yet — we need it for sending
         }
         recomputeOverallProgress()
         status = "Queued \(queue.count) file(s)."
@@ -410,18 +360,32 @@ final class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelega
     private func loadDroppedFileURLs(_ providers: [NSItemProvider]) async -> [URL] {
         var urls: [URL] = []
         for p in providers {
+            // Try loading as file URL
             if p.hasItemConformingToTypeIdentifier("public.file-url") {
                 do {
                     let item = try await p.loadItem(forTypeIdentifier: "public.file-url")
-                    if let data = item as? Data,
-                       let url = URL(dataRepresentation: data, relativeTo: nil) {
-                        urls.append(url)
+                    if let data = item as? Data {
+                        // macOS returns URL as UTF-8 path data or bookmark data
+                        if let url = URL(dataRepresentation: data, relativeTo: nil) {
+                            urls.append(url)
+                            continue
+                        }
+                        // Try as UTF-8 path string
+                        if let path = String(data: data, encoding: .utf8),
+                           let url = URL(string: path) ?? URL(fileURLWithPath: path) as URL? {
+                            urls.append(url)
+                            continue
+                        }
                     } else if let url = item as? URL {
                         urls.append(url)
+                        continue
                     }
-                } catch { }
+                } catch {
+                    print("[AuraConnect] Drop load error: \(error)")
+                }
             }
         }
+        print("[AuraConnect] Resolved \(urls.count) URLs from \(providers.count) providers")
         return urls
     }
 
@@ -443,11 +407,9 @@ final class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelega
                         advertisementData: [String : Any],
                         rssi RSSI: NSNumber) {
 
-        //let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String)
-        //    ?? peripheral.name
-        //    ?? "Aura Puck"
-        
-        let name = "Paul Chou’s Puck"
+        let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String)
+            ?? peripheral.name
+            ?? "Aura Puck"
 
         let d = AuraDevice(id: peripheral.identifier, name: name, rssi: RSSI.intValue, peripheral: peripheral)
 
