@@ -2,12 +2,17 @@ import SwiftUI
 import Combine
 import Foundation
 
-// PROJECT OMICRON — ambient backdrop. Near-black, amber, subtly alive: a slow-turning
-// wireframe globe (command-center), a drifting amber glow, ping beacons, a soft vignette.
+// PROJECT OMICRON — ambient backdrop. Near-black, amber, subtly alive: a drifting glow,
+// a twinkling starfield, the occasional comet, and a slow-turning wireframe globe.
 // Translucent panels float over it.
 
 private let BG_AMBER = Color(red: 1.0, green: 0.69, blue: 0.28)
 private let BG_HOT   = Color(red: 1.0, green: 0.92, blue: 0.72)
+
+private func hash(_ i: Int, _ s: Double) -> Double {
+    let v = sin(Double(i) * s) * 43758.5453
+    return v - v.rounded(.down)
+}
 
 struct AuraBackground: View {
     var energy: Double = 0.6
@@ -30,11 +35,55 @@ private func drawScene(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, _ e:
         Gradient(colors: [BG_AMBER.opacity(0.05 + 0.03 * e), .clear]),
         center: CGPoint(x: gx, y: gy), startRadius: 0, endRadius: max(W, H) * 0.7)
     ctx.fill(Path(CGRect(origin: .zero, size: size)), with: glow)
+    drawStars(ctx, size, t)
     drawGlobe(ctx, size, t, e)
+    drawComet(ctx, size, t)
     let vig = GraphicsContext.Shading.radialGradient(
         Gradient(colors: [.clear, .black.opacity(0.55)]),
         center: CGPoint(x: W / 2, y: H / 2), startRadius: min(W, H) * 0.3, endRadius: max(W, H) * 0.75)
     ctx.fill(Path(CGRect(origin: .zero, size: size)), with: vig)
+}
+
+private func drawStars(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
+    let W = Double(size.width), H = Double(size.height)
+    for i in 0..<150 {
+        let x = hash(i, 12.9898) * W
+        let y = hash(i, 78.233) * H
+        let twin = 0.5 + 0.5 * sin(t * (0.4 + hash(i, 1.7) * 1.6) + Double(i))
+        let baseOp = 0.10 + 0.30 * hash(i, 3.17)
+        let op = baseOp * (0.45 + 0.55 * twin)
+        let s = 0.6 + 1.4 * hash(i, 5.1)
+        let warm = hash(i, 7.7) > 0.82
+        let col: Color = warm ? BG_AMBER : .white
+        ctx.fill(Path(ellipseIn: CGRect(x: x - s / 2, y: y - s / 2, width: s, height: s)), with: .color(col.opacity(op * 0.6)))
+    }
+}
+
+private func drawComet(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
+    let W = Double(size.width), H = Double(size.height)
+    let period = 8.0
+    let cyc = (t / period).rounded(.down)
+    let local = t - cyc * period
+    let dur = 1.15
+    if local >= dur { return }
+    let ci = Int(cyc)
+    let p = local / dur
+    let start = CGPoint(x: (0.08 + 0.8 * hash(ci, 24.3)) * W, y: (0.04 + 0.22 * hash(ci, 51.7)) * H)
+    let ang = Double.pi * 0.16 + hash(ci, 9.1) * 0.34
+    let dist = max(W, H) * 0.62
+    let fade = sin(p * Double.pi)
+    let tailN = 16
+    for k in 0..<tailN {
+        let tpp = max(p - Double(k) / Double(tailN) * 0.12, 0)
+        let tx = start.x + CGFloat(cos(ang) * dist * tpp)
+        let ty = start.y + CGFloat(sin(ang) * dist * tpp)
+        let op = fade * (1 - Double(k) / Double(tailN)) * 0.5
+        let s = 2.2 * (1 - Double(k) / Double(tailN)) + 0.4
+        ctx.fill(Path(ellipseIn: CGRect(x: tx - s / 2, y: ty - s / 2, width: s, height: s)), with: .color(BG_HOT.opacity(op)))
+    }
+    let hx = start.x + CGFloat(cos(ang) * dist * p)
+    let hy = start.y + CGFloat(sin(ang) * dist * p)
+    ctx.fill(Path(ellipseIn: CGRect(x: hx - 2.4, y: hy - 2.4, width: 4.8, height: 4.8)), with: .color(.white.opacity(fade * 0.9)))
 }
 
 private func drawGlobe(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, _ e: Double) {
