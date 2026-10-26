@@ -107,8 +107,8 @@ struct FloatingTile<Content: View>: View {
                     Text(title).font(.brand(11)).tracking(2.4)
                         .foregroundStyle(accent.opacity(0.5 + 0.5 * energy)).padding(14)
                 }
-                .background(.ultraThinMaterial)
-                .background(accent.opacity(0.04 + 0.08 * energy))
+                .background(Color(red: 0.03, green: 0.027, blue: 0.05).opacity(hardened ? 0.40 : 0.12))
+                .background(accent.opacity(0.03 + 0.06 * energy))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.18 + 0.42 * energy), lineWidth: 1))
                 .overlay(CornerTicks(accent: accent))
@@ -147,7 +147,7 @@ struct LiveView: View {
     }
     private func scheduleHarden() {
         hardened = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 11.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15.6) {
             withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
         }
     }
@@ -237,8 +237,7 @@ struct EgressBar: View {
             }
         }
         .padding(.horizontal, 26).frame(height: 88)
-        .background(.ultraThinMaterial)
-        .background(OKGREEN.opacity(0.06))
+        .background(Color(red: 0.02, green: 0.04, blue: 0.03).opacity(0.42))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(OKGREEN.opacity(0.22)))
         .overlay(CornerTicks(accent: OKGREEN))

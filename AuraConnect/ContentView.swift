@@ -38,29 +38,34 @@ struct ContentView: View {
         ZStack {
             AuraBackground(energy: bt.isConnected ? 1.1 : 0.5)
 
-            HStack(spacing: 0) {
-                Sidebar(section: $section)
-                    .frame(width: 230)
+            if !showStartup {
+                HStack(spacing: 0) {
+                    Sidebar(section: $section)
+                        .frame(width: 230)
 
-                detail
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    detail
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .transition(.opacity)
             }
             if showStartup {
-                StartupReveal(onDone: { withAnimation(.easeInOut(duration: 0.9)) { showStartup = false }; voice.activate() })
+                StartupReveal(onDone: { voice.activate(greet: false); withAnimation(.easeInOut(duration: 1.6)) { showStartup = false } })
                     .transition(.opacity)
                     .zIndex(100)
             }
-            VStack {
-                HStack(spacing: 10) {
+            if !showStartup {
+                VStack {
+                    HStack(spacing: 10) {
+                        Spacer()
+                        ListeningPill(voice: voice)
+                        LockButton { withAnimation { voice.lock() } }
+                        SeverButton { withAnimation { showVault = true } }
+                    }
+                    .padding(16)
                     Spacer()
-                    ListeningPill(voice: voice)
-                    LockButton { withAnimation { voice.lock() } }
-                    SeverButton { withAnimation { showVault = true } }
                 }
-                .padding(16)
-                Spacer()
+                .zIndex(50)
             }
-            .zIndex(50)
             if showVault {
                 DisconnectVault(onClosed: {
                     bt.disconnect()

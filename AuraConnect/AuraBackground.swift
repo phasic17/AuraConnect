@@ -94,17 +94,17 @@ private func drawScene(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, _ e:
     drawWorldMap(ctx, size, t, e)
     drawComet(ctx, size, t)
     let vig = GraphicsContext.Shading.radialGradient(
-        Gradient(colors: [.clear, .black.opacity(0.5)]),
-        center: CGPoint(x: W / 2, y: H / 2), startRadius: min(W, H) * 0.35, endRadius: max(W, H) * 0.8)
+        Gradient(colors: [.clear, .black.opacity(0.26)]),
+        center: CGPoint(x: W / 2, y: H / 2), startRadius: min(W, H) * 0.5, endRadius: max(W, H) * 0.98)
     ctx.fill(Path(CGRect(origin: .zero, size: size)), with: vig)
 }
 
 private func drawWorldMap(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, _ e: Double) {
     let W = Double(size.width), H = Double(size.height)
     let cols = Double(WorldMap.cols), rows = Double(WorldMap.nrows)
-    let mapH = H * 0.70, offY = H * 0.15
+    let mapH = H * 0.84, offY = H * 0.08
     let stepX = W / cols, stepY = mapH / rows
-    let period = 34.0
+    let period = 44.0
     let sweepX = (t / period - (t / period).rounded(.down)) * W
     let g = WorldMap.grid
     for r in 0..<WorldMap.nrows {
@@ -117,11 +117,11 @@ private func drawWorldMap(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, _
             var d = abs(x - sweepX); if d > W / 2 { d = W - d }
             let near = max(0, 1 - d / (W * 0.13))
             let hue = baseHue + (0.085 - baseHue) * (near * 0.92)   // amber wash under the sweep
-            let bright = 0.40 + 0.55 * near
-            let sat = 0.66 + 0.28 * near
-            let sz = 2.1 + 2.1 * near
+            let bright = 0.52 + 0.46 * near
+            let sat = 0.74 + 0.24 * near
+            let sz = 2.7 + 2.3 * near
             ctx.fill(Path(ellipseIn: CGRect(x: x - sz / 2, y: y - sz / 2, width: sz, height: sz)),
-                     with: .color(Color(hue: hue, saturation: sat, brightness: bright, opacity: 0.5 + 0.48 * near)))
+                     with: .color(Color(hue: hue, saturation: sat, brightness: bright, opacity: 0.64 + 0.36 * near)))
         }
     }
     let bar = GraphicsContext.Shading.linearGradient(

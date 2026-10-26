@@ -3,8 +3,6 @@ import Combine
 import AVFoundation
 import Speech
 
-// Always-on conversational voice in Aura's ACTUAL voice. ONE persistent audio engine
-// (started once -> one mic prompt). Mic + Speech permission requested exactly once.
 final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var listening = false
     @Published var speaking = false
@@ -21,19 +19,26 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private var player: AVAudioPlayer?
     private let synth = AVSpeechSynthesizer()
     private var greeted = false
+    private var permGranted = false
+    private var permDenied = false
     private let acks = ["aura_ack1", "aura_ack2", "aura_ack3", "aura_ack4"]
 
-    func activate() {
+    func activate(greet: Bool = true) {
         guard !locked else { return }
+        if permDenied { transcript = "(enable Microphone + Speech in System Settings ▸ Privacy)"; return }
+        if permGranted { proceed(greet); return }
         ensurePermissions { ok in
-            guard ok else { self.transcript = "(enable Microphone + Speech in System Settings ▸ Privacy)"; return }
-            self.startEngineOnce()
-            if !self.greeted { self.greeted = true; self.play("aura_greeting", fallback: "I'm here, Paul. Just talk to me, I'm listening.") }
-            else { self.beginListen() }
+            if ok { self.permGranted = true; self.proceed(greet) }
+            else { self.permDenied = true; self.transcript = "(enable Microphone + Speech in System Settings ▸ Privacy)" }
         }
     }
+    private func proceed(_ greet: Bool) {
+        startEngineOnce()
+        if greet && !greeted { greeted = true; play("aura_greeting", fallback: "I'm here, Paul. Just talk to me, I'm listening.") }
+        else { greeted = true; beginListen() }
+    }
     func lock() { locked = true; endListen(); player?.stop(); synth.stopSpeaking(at: .immediate); speaking = false }
-    func unlock() { locked = false; activate() }
+    func unlock() { locked = false; activate(greet: false) }
 
     private func ensurePermissions(_ done: @escaping (Bool) -> Void) {
         func afterMic(_ micOK: Bool) {
@@ -50,7 +55,6 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         default: afterMic(false)
         }
     }
-
     private func startEngineOnce() {
         guard !engineStarted else { return }
         let node = engine.inputNode
@@ -69,12 +73,10 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         engine.prepare()
         do { try engine.start(); engineStarted = true } catch { transcript = "(microphone unavailable)" }
     }
-
     private func play(_ resource: String, fallback: String) {
         endListen()
         speaking = true
-        if let url = Bundle.main.url(forResource: resource, withExtension: "m4a"),
-           let p = try? AVAudioPlayer(contentsOf: url) {
+        if let url = Bundle.main.url(forResource: resource, withExtension: "m4a"), let p = try? AVAudioPlayer(contentsOf: url) {
             p.delegate = self; p.prepareToPlay(); player = p; p.play()
         } else {
             let u = AVSpeechUtterance(string: fallback); u.rate = 0.5
@@ -90,8 +92,7 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
         request = req
-        listening = true
-        transcript = ""
+        listening = true; transcript = ""
         task = recognizer?.recognitionTask(with: req) { res, err in
             DispatchQueue.main.async {
                 if let r = res { self.transcript = r.bestTranscription.formattedString; self.armSilence() }
@@ -114,7 +115,6 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         listening = false; level = 0
     }
     private func converse(_ t: String) {
-        // P0: acknowledge in Aura's actual voice. P1: stream the puck brain's reply over BLE.
         play(acks.randomElement() ?? "aura_ack1", fallback: "I'm on it.")
     }
 }
@@ -133,7 +133,6 @@ struct ListeningPill: View {
         .overlay(Capsule().stroke(col.opacity(0.4), lineWidth: 1))
     }
 }
-
 struct LockButton: View {
     var action: () -> Void
     var body: some View {
@@ -145,7 +144,6 @@ struct LockButton: View {
         }.buttonStyle(.plain)
     }
 }
-
 struct SeverButton: View {
     var action: () -> Void
     var body: some View {

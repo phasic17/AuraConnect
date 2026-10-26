@@ -1,80 +1,127 @@
 import SwiftUI
 import Foundation
 import AVFoundation
+import AppKit
 
-// Authentic Continuum mark (port of continuum_mark.py): a bright ring CONTINUOUS/solid at
-// the top, DISSOLVING into pixels as it travels counter-clockwise. We draw it on slowly.
-private let C_HOT   = (r: 1.0, g: 0.910, b: 0.804)
-private let C_EMBER = (r: 0.949, g: 0.635, b: 0.361)
-private func thash(_ i: Int, _ s: Double) -> Double { let v = sin(Double(i) * s) * 43758.5453; return v - v.rounded(.down) }
+private let CR_AMBER = Color(red: 1.0, green: 0.72, blue: 0.34)
+private let CR_OK = Color(red: 0.24, green: 0.90, blue: 0.69)
 
-private func drawMark(_ ctx: GraphicsContext, _ size: CGSize, _ reveal: Double) {
-    let cx = Double(size.width) / 2
-    let cy = Double(size.height) / 2
-    let R = min(Double(size.width), Double(size.height)) * 0.185
-    var ang = 0.0
-    var i = 0
-    while ang < 360 {
-        let p = ang / 360.0
-        if p <= reveal {
-            let a = (90.0 + ang) * Double.pi / 180.0
-            let x = cx + R * cos(a)
-            let y = cy - R * sin(a)
-            var ps = R * 0.085 * (1 - 0.5 * p)
-            let jr = pow(p, 1.6) * R * 0.16
-            let jx = (thash(i, 12.9898) - 0.5) * jr
-            let jy = (thash(i, 78.233) - 0.5) * jr
-            let drop = p > 0.30 && thash(i, 3.37) < (p - 0.30) * 0.85
-            if p > 0.55 && thash(i, 5.71) < 0.35 { ps *= 0.6 }
-            if !drop {
-                let tt = min(p * 2.0, 1.0)
-                let col = Color(red: C_HOT.r + (C_EMBER.r - C_HOT.r) * tt,
-                                green: C_HOT.g + (C_EMBER.g - C_HOT.g) * tt,
-                                blue: C_HOT.b + (C_EMBER.b - C_HOT.b) * tt)
-                let alpha = 1 - 0.22 * p
-                ctx.fill(Path(CGRect(x: x + jx - ps, y: y + jy - ps, width: ps * 2, height: ps * 2)), with: .color(col.opacity(alpha * 0.16)))
-                ctx.fill(Path(CGRect(x: x + jx - ps / 2, y: y + jy - ps / 2, width: ps, height: ps)), with: .color(col.opacity(alpha)))
-            }
-        }
-        ang += 0.42 + pow(p, 2) * 3.4
-        i += 1
+private func continuumImage() -> Image? {
+    if let u = Bundle.main.url(forResource: "continuum_hq", withExtension: "png"), let ns = NSImage(contentsOf: u) {
+        return Image(nsImage: ns)
     }
+    return nil
 }
 
 struct StartupReveal: View {
     var onDone: () -> Void
     @State private var started = Date()
-    @State private var player: AVAudioPlayer?
+    @State private var music: AVAudioPlayer?
+    @State private var voice: AVAudioPlayer?
+    private let WELCOME = "welcome, let's get started"
+
+    private func ringP(_ e: Double) -> Double { min(max((e - 0.6) / 8.0, 0), 1) }
+    private func welcomeShown(_ e: Double) -> String {
+        let L = WELCOME.count
+        var n = 0
+        if e < 2.5 { n = 0 }
+        else if e < 2.5 + Double(L) * 0.18 { n = Int((e - 2.5) / 0.18) }
+        else if e < 12.0 { n = L }
+        else { n = max(0, L - Int((e - 12.0) / 0.18)) }
+        return String(WELCOME.prefix(min(max(n, 0), L)))
+    }
+    private func pct(_ e: Double) -> Int { Int(min(max((e - 12.0) / 4.4, 0), 1) * 100) }
+    private func sceneOpacity(_ e: Double) -> Double { min(min(e / 1.4, 1), max(0, (22.5 - e) / 2.0)) }
+
     var body: some View {
         TimelineView(.animation) { tl in
             let e = tl.date.timeIntervalSince(started)
-            let reveal = min(max((e - 0.8) / 12.4, 0), 1)
             ZStack {
-                Color(red: 0.031, green: 0.027, blue: 0.039)
-                Canvas { ctx, size in drawMark(ctx, size, reveal) }
-                VStack(spacing: 8) {
-                    Text("\(Int(reveal * 100))%").font(.brand(34)).foregroundStyle(.white.opacity(0.92))
-                    Text("LOADING").font(.brand(10)).tracking(6).foregroundStyle(Color(red: 0.95, green: 0.64, blue: 0.36).opacity(0.75))
-                    Text("ESTABLISHING SECURE LINK").font(.brand(8)).tracking(3).foregroundStyle(.white.opacity(0.3))
-                }
-                if e > 13.0 {
-                    VStack { Spacer()
-                        Text("A U R A   C O N N E C T").font(.brand(14)).tracking(4)
-                            .foregroundStyle(.white.opacity(min((e - 13.0) / 1.2, 1) * 0.9)).padding(.bottom, 90)
+                Color.black
+                GeometryReader { g in
+                    let D = min(g.size.width, g.size.height) * 0.58
+                    ZStack {
+                        if let img = continuumImage() {
+                            img.resizable().interpolation(.high).scaledToFit().frame(width: D, height: D)
+                        }
                     }
+                    .frame(width: g.size.width, height: g.size.height)
+                    .mask(
+                        Canvas { ctx, size in
+                            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+                            let bigR = max(size.width, size.height)
+                            var p = Path(); p.move(to: c)
+                            let steps = max(1, Int(ringP(e) * 360))
+                            for i in 0...steps {
+                                let frac = Double(i) / 360.0
+                                let ang = -Double.pi / 2 - frac * 2 * Double.pi
+                                p.addLine(to: CGPoint(x: c.x + CGFloat(cos(ang)) * bigR, y: c.y + CGFloat(sin(ang)) * bigR))
+                            }
+                            p.closeSubpath()
+                            ctx.fill(p, with: .color(.white))
+                        }
+                    )
+                }
+                centerContent(e)
+                if e >= 7.6 && e < 12.2 {
+                    VStack(spacing: 8) {
+                        Text("VOICE AUTHENTICATION").font(.brand(10)).tracking(5).foregroundStyle(CR_AMBER.opacity(0.85))
+                        Text("PAUL CHOU   \u{00B7}   ALPHA  ALPHA  BRAVO").font(.brand(15)).tracking(2).foregroundStyle(.white.opacity(0.92))
+                        authWave(e)
+                    }
+                    .offset(y: 170)
+                    .opacity(min((e - 7.6) / 0.8, 1) * min((12.2 - e) / 0.8, 1))
                 }
             }
+            .overlay(alignment: .topLeading) {
+                let w = welcomeShown(e)
+                if !w.isEmpty {
+                    HStack(spacing: 1) {
+                        Text(w).font(.brand(19)).foregroundStyle(.white.opacity(0.95))
+                        if e < 16.6 { Text("\u{2588}").font(.brand(17)).foregroundStyle(CR_AMBER.opacity(0.4 + 0.5 * sin(e * 6))) }
+                    }
+                    .padding(.leading, 36).padding(.top, 32)
+                }
+            }
+            .opacity(sceneOpacity(e))
         }
         .ignoresSafeArea()
-        .onAppear {
-            started = Date()
-            if let u = Bundle.main.url(forResource: "loading_music", withExtension: "m4a"),
-               let p = try? AVAudioPlayer(contentsOf: u) {
-                p.prepareToPlay(); p.volume = 0; player = p; p.play()
-                for i in 0...6 { let vv = Double(i) / 6 * 0.9; DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.1) { self.player?.volume = Float(vv) } }
+        .onAppear { runSequence() }
+    }
+
+    @ViewBuilder private func centerContent(_ e: Double) -> some View {
+        if e >= 12.0 && e < 16.8 {
+            Text("\(pct(e))%").font(.brand(36)).foregroundStyle(.white.opacity(0.92))
+        } else if e >= 16.8 {
+            VStack(spacing: 8) {
+                Image(systemName: "checkmark.seal.fill").font(.system(size: 30)).foregroundStyle(CR_OK)
+                Text("IDENTITY CONFIRMED").font(.brand(12)).tracking(3).foregroundStyle(CR_OK.opacity(0.9))
             }
-            for i in 0...8 { let vv = 0.9 * (1 - Double(i) / 8); DispatchQueue.main.asyncAfter(deadline: .now() + 13.6 + Double(i) * 0.15) { self.player?.volume = Float(vv) } }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 15.0) { self.player?.stop(); onDone() }
+            .opacity(min((e - 16.8) / 0.8, 1))
         }
+    }
+    @ViewBuilder private func authWave(_ e: Double) -> some View {
+        HStack(spacing: 4) {
+            ForEach(0..<9, id: \.self) { i in
+                Capsule().fill(CR_AMBER.opacity(0.8))
+                    .frame(width: 3, height: 6 + 15 * abs(sin(e * 3 + Double(i) * 0.7)))
+            }
+        }.frame(height: 24)
+    }
+
+    private func play(_ res: String) {
+        guard let u = Bundle.main.url(forResource: res, withExtension: "m4a"), let p = try? AVAudioPlayer(contentsOf: u) else { return }
+        p.prepareToPlay(); p.play(); voice = p
+    }
+    private func runSequence() {
+        started = Date()
+        if let u = Bundle.main.url(forResource: "loading_music", withExtension: "m4a"), let p = try? AVAudioPlayer(contentsOf: u) {
+            p.numberOfLoops = -1; p.prepareToPlay(); p.volume = 0; music = p; p.play()
+            for i in 0...8 { let vv = Double(i) / 8 * 0.85; DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.14) { self.music?.volume = Float(vv) } }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { self.play("aura_auth") }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 17.3) { self.play("aura_welcomeback") }
+        for i in 0...8 { let vv = 0.85 * (1 - Double(i) / 8); DispatchQueue.main.asyncAfter(deadline: .now() + 20.5 + Double(i) * 0.22) { self.music?.volume = Float(vv) } }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 22.5) { self.music?.stop(); onDone() }
     }
 }
