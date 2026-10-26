@@ -7,6 +7,7 @@ import SwiftUI
 private let AURA_SERVICE_UUID = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F2")
 private let AURA_CTRL_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F3")
 private let AURA_DATA_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F4")
+private let AURA_TELE_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F5")
 
 enum LinkState: Equatable {
     case idle
@@ -97,6 +98,17 @@ enum TransferStatus: Equatable {
 }
 
 @MainActor
+struct PuckTelemetry {
+    var temp: Double?
+    var memUsed: Double?
+    var memTotal: Double?
+    var models: Int?
+    var uptime: Int?
+    var load: Double?
+    var egress: Int
+    var chat: [(who: String, text: String)]
+}
+
 final class BluetoothManager: NSObject, ObservableObject {
     @Published var state: LinkState = .idle
     @Published var devices: [AuraDevice] = []
@@ -105,6 +117,7 @@ final class BluetoothManager: NSObject, ObservableObject {
     @Published var overallProgress: Double = 0.0
     @Published var isSending: Bool = false
     @Published var lastEvent: String = ""
+    @Published var telemetry: PuckTelemetry? = nil
 
     // Last successful connection — used to distinguish "never paired" from
     // "session ended cleanly N seconds ago" so the status indicator can show
@@ -141,6 +154,7 @@ final class BluetoothManager: NSObject, ObservableObject {
     private var peripheral: CBPeripheral?
     private var ctrlChar: CBCharacteristic?
     private var dataChar: CBCharacteristic?
+    private var teleChar: CBCharacteristic?
 
     private var sendTask: Task<Void, Never>?
     private var pendingAck: CheckedContinuation<Result<Void, Error>, Never>?
@@ -613,7 +627,7 @@ extension BluetoothManager: CBPeripheralDelegate {
             Task { @MainActor in self.log("Aura service not found") }
             return
         }
-        peripheral.discoverCharacteristics([AURA_CTRL_UUID, AURA_DATA_UUID], for: svc)
+        peripheral.discoverCharacteristics([AURA_CTRL_UUID, AURA_DATA_UUID, AURA_TELE_UUID], for: svc)
     }
 
     nonisolated func peripheral(_ peripheral: CBPeripheral,
@@ -626,18 +640,22 @@ extension BluetoothManager: CBPeripheralDelegate {
 
         var ctrl: CBCharacteristic?
         var data: CBCharacteristic?
+        var tele: CBCharacteristic?
         for c in service.characteristics ?? [] {
             if c.uuid == AURA_CTRL_UUID { ctrl = c }
             if c.uuid == AURA_DATA_UUID { data = c }
+            if c.uuid == AURA_TELE_UUID { tele = c }
         }
         let name = peripheral.name ?? "Aura Puck"
         let id = peripheral.identifier
         Task { @MainActor in
             self.ctrlChar = ctrl
             self.dataChar = data
+            self.teleChar = tele
             if let c = ctrl, c.properties.contains(.notify) {
                 peripheral.setNotifyValue(true, for: c)
             }
+            if let t = tele { peripheral.setNotifyValue(true, for: t) }
             let d = AuraDevice(id: id, name: name, rssi: 0, peripheral: peripheral)
             self.state = .connected(d)
             self.lastConnectedDevice = d
@@ -649,7 +667,12 @@ extension BluetoothManager: CBPeripheralDelegate {
     nonisolated func peripheral(_ peripheral: CBPeripheral,
                                 didUpdateValueFor characteristic: CBCharacteristic,
                                 error: Error?) {
-        guard characteristic.uuid == AURA_CTRL_UUID, let v = characteristic.value else { return }
+        guard let v = characteristic.value else { return }
+        if characteristic.uuid == AURA_TELE_UUID {
+            Task { @MainActor in self.handleTelemetry(v) }
+            return
+        }
+        guard characteristic.uuid == AURA_CTRL_UUID else { return }
         Task { @MainActor in self.handleCtrlNotify(v) }
     }
 
@@ -676,5 +699,24 @@ extension BluetoothManager: CBPeripheralDelegate {
             self.woRWaiters.removeAll()
             waiters.forEach { $0.resume() }
         }
+    }
+}
+
+extension BluetoothManager {
+    func handleTelemetry(_ data: Data) {
+        guard let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
+        func dbl(_ k: String) -> Double? { if let d = obj[k] as? Double { return d }; if let i = obj[k] as? Int { return Double(i) }; return nil }
+        func int(_ k: String) -> Int? { if let i = obj[k] as? Int { return i }; if let d = obj[k] as? Double { return Int(d) }; return nil }
+        var chat: [(who: String, text: String)] = []
+        if let arr = obj["chat"] as? [[String: Any]] {
+            for e in arr {
+                let w = (e["w"] as? String) ?? "?"
+                let t = (e["t"] as? String) ?? ""
+                if !t.isEmpty { chat.append((who: w, text: t)) }
+            }
+        }
+        self.telemetry = PuckTelemetry(temp: dbl("t"), memUsed: dbl("mu"), memTotal: dbl("mt"),
+                                       models: int("mdl"), uptime: int("up"), load: dbl("load"),
+                                       egress: int("eg") ?? 0, chat: chat)
     }
 }

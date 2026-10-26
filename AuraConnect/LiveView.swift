@@ -292,10 +292,13 @@ struct LiveView: View {
             withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
         }
     }
+    private func teleTemp(_ t: PuckTelemetry?) -> String { if let v = t?.temp { return "\(Int(v))\u{00B0}C" }; return "\u{2014}" }
+    private func teleMem(_ t: PuckTelemetry?) -> String { if let u = t?.memUsed, let m = t?.memTotal { return "\(String(format: "%.1f", u)) / \(Int(m)) GB" }; return "\u{2014}" }
     private var dashboard: some View {
-        VStack(spacing: 16) {
-            FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
-                MindStream(lines: tel.stream)
+        let tm = bt.telemetry
+        return VStack(spacing: 16) {
+            FloatingTile(title: "THE MIND \u{2014} LIVE CONVERSATION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
+                MindLive(chat: tm?.chat ?? [], demo: tel.stream)
             }
             .frame(height: 162)
             .clipped()
@@ -303,21 +306,45 @@ struct LiveView: View {
             HStack(alignment: .top, spacing: 16) {
                 VStack(spacing: 16) {
                     ActionTile(t: "SIGNALS", accent: CY, big: "3 NEW", sub: "2 flagged for you \u{00B7} Decoder replied", kind: "spark", h: 146, ph: 0.3).assemble(1, 8, assembleToken)
-                    ActionTile(t: "MODEL WATCH", accent: VI, big: "GLM-AIR \u{00B7} 240ms", sub: "3 resident \u{00B7} p95 310ms \u{00B7} 0 errors", kind: "spark", h: 246, ph: 0.9).assemble(2, 8, assembleToken)
+                    ActionTile(t: "MODEL WATCH", accent: VI, big: "\(tm?.models ?? 0) RESIDENT", sub: "glm-air \u{00B7} on-device \u{00B7} 0 errors", kind: "spark", h: 246, ph: 0.9).assemble(2, 8, assembleToken)
                 }
                 VStack(spacing: 16) {
-                    ActionTile(t: "PUCK FLEET", accent: GN, big: "4 / 4 ONLINE", sub: "onyx-7f3a 71\u{00B0} \u{00B7} pearl-2b1c 68\u{00B0} \u{00B7} healthy", kind: "dots", h: 228, ph: 1.5).assemble(3, 8, assembleToken)
+                    ActionTile(t: "PUCK FLEET", accent: GN, big: bt.isConnected ? "1 / 1 ONLINE" : "0 / 1", sub: bt.isConnected ? "Aura Puck \u{00B7} secure link" : "scanning\u{2026}", kind: "dots", h: 228, ph: 1.5).assemble(3, 8, assembleToken)
                     ActionTile(t: "APPROVALS", accent: MG, big: "2 PENDING", sub: "ship-gate review \u{00B7} your call", kind: "ring", h: 116, ph: 2.1).assemble(4, 8, assembleToken)
                 }
                 VStack(spacing: 16) {
-                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: "71\u{00B0}C \u{00B7} 7.6/16GB", sub: "AES link \u{00B7} 3 models resident \u{00B7} 0 egress", kind: "bars", h: 204, ph: 2.7).assemble(5, 8, assembleToken)
-                    ActionTile(t: "TODAY", accent: OR, big: "5 \u{00B7} 2 DUE", sub: "PAIR send \u{00B7} reveal recut", kind: "ring", h: 150, ph: 3.3).assemble(6, 8, assembleToken)
+                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: teleMem(tm), sub: "\(tm?.models ?? 0) models \u{00B7} AES link \u{00B7} 0 egress", kind: "bars", h: 204, ph: 2.7).assemble(5, 8, assembleToken)
+                    ActionTile(t: "THERMAL", accent: OR, big: teleTemp(tm), sub: "puck core temperature", kind: "ring", h: 150, ph: 3.3).assemble(6, 8, assembleToken)
                 }
             }
             EgressBar(events: tel.eventsProcessed)
                 .assemble(7, 8, assembleToken)
         }
         .padding(16)
+    }
+}
+
+struct MindLive: View {
+    var chat: [(who: String, text: String)]
+    var demo: [LiveTelemetry.StreamLine]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Spacer(minLength: 28)
+            if !chat.isEmpty {
+                ForEach(Array(chat.enumerated()), id: \.offset) { pair in
+                    let isAura = pair.element.who.lowercased() == "aura"
+                    (Text(isAura ? "Aura: " : (pair.element.who + ": ")).foregroundColor(isAura ? EMBER : .white.opacity(0.92))
+                        + Text(pair.element.text).foregroundColor(.white.opacity(0.78)))
+                        .font(.system(size: 13, design: .monospaced))
+                }
+            } else {
+                ForEach(demo) { l in
+                    Text(l.text).font(.system(size: 13, design: .monospaced)).foregroundStyle(.secondary).italic()
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.bottom, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
     }
 }
 
