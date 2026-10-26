@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct AuraConnectApp: App {
+    init() { AuraFonts.register() }
     @StateObject private var bt = BluetoothManager()
 
     var body: some Scene {

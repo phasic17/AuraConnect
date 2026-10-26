@@ -3,6 +3,7 @@ import Combine
 
 enum AuraSection: String, CaseIterable, Identifiable {
     case live          = "Live"
+    case console       = "Console"
     case transfer      = "Transfer"
     case updates       = "Updates"
     case modules       = "AI Modules"
@@ -14,6 +15,7 @@ enum AuraSection: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .live:     return "waveform.path.ecg"
+        case .console:  return "terminal"
         case .transfer: return "arrow.up.doc.on.clipboard"
         case .updates:  return "arrow.down.circle"
         case .modules:  return "cpu"
@@ -28,6 +30,8 @@ struct ContentView: View {
     @EnvironmentObject var bt: BluetoothManager
     @State private var section: AuraSection = .live
     @State private var showStartup = true
+    @StateObject private var voice = VoiceManager()
+    @State private var showVault = false
 
     var body: some View {
         ZStack {
@@ -45,6 +49,23 @@ struct ContentView: View {
                     .transition(.opacity)
                     .zIndex(100)
             }
+            VStack {
+                HStack(spacing: 10) {
+                    Spacer()
+                    MicButton(voice: voice)
+                    SeverButton { withAnimation { showVault = true } }
+                }
+                .padding(16)
+                Spacer()
+            }
+            .zIndex(50)
+            if showVault {
+                DisconnectVault(onClosed: {
+                    bt.disconnect()
+                    withAnimation(.easeInOut(duration: 0.8)) { showVault = false }
+                })
+                .zIndex(200)
+            }
         }
         .preferredColorScheme(.dark)
     }
@@ -58,6 +79,7 @@ struct ContentView: View {
             Group {
                 switch section {
                 case .live:     LiveView()
+                case .console:  ConsoleView()
                 case .transfer: TransferView()
                 case .updates:  UpdatesView()
                 case .modules:  AIModulesView()

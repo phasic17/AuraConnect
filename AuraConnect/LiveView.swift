@@ -1,10 +1,10 @@
 import SwiftUI
 import Combine
 
-// PROJECT OMICRON — the Reveal. A dazzling live view of what the puck perceives,
-// rendered on the Mac's screen the moment the BLE-secure link locks.
-// NOTE: telemetry below is a DEMO STREAM (clearly labelled) until the puck's
-// GATT telemetry characteristic ships in P1. The dashboard shell + reveal are real.
+// PROJECT OMICRON — the Reveal. Floating, context-reactive glass tiles render what
+// the puck perceives. Tiles drift, brighten, and swell with real-time activity:
+// the Room tile flares when someone speaks, the Mind tile when Aura reasons.
+// Telemetry is a labelled DEMO STREAM until the puck GATT characteristic ships (P1).
 
 final class LiveTelemetry: ObservableObject {
     struct Person: Identifiable { let id = UUID(); var name: String; var bearing: Double; var dist: Double; var activity: Double; var color: Color }
@@ -24,6 +24,9 @@ final class LiveTelemetry: ObservableObject {
         .init(name: "AES link",         frac: 0.99, value: "encrypted")
     ]
     @Published var eventsProcessed: Int = 0
+    @Published var roomEnergy: Double = 0.45
+    @Published var mindEnergy: Double = 0.45
+    @Published var sysEnergy: Double = 0.5
     let isSimulated = true
 
     private let lines: [(String, String)] = [
@@ -50,6 +53,16 @@ final class LiveTelemetry: ObservableObject {
             if self.stream.count > 9 { self.stream.removeFirst() }
             self.idx += 1
             self.eventsProcessed += Int.random(in: 10...60)
+            withAnimation(.easeOut(duration: 1.0)) {
+                self.roomEnergy *= 0.5
+                self.mindEnergy *= 0.5
+                switch l.0 {
+                case "q", "r": self.roomEnergy = 1.0
+                case "j", "m": self.mindEnergy = 1.0
+                default: break
+                }
+                self.sysEnergy = 0.5 + 0.12 * sin(Double(self.idx) * 0.7)
+            }
         }
     }
     func stop() { timer?.invalidate(); timer = nil }
@@ -134,6 +147,38 @@ private func drawReveal(_ ctx: GraphicsContext, _ size: CGSize, _ e: Double) {
     ctx.fill(Path(ellipseIn: CGRect(x: cx - core, y: cy - core, width: core * 2, height: core * 2)), with: .color(EMBER))
 }
 
+// MARK: - Floating, context-reactive tile
+
+struct FloatingTile<Content: View>: View {
+    var title: String
+    var energy: Double
+    var phase: Double
+    var accent: Color = EMBER
+    @ViewBuilder var content: () -> Content
+    var body: some View {
+        TimelineView(.animation) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            let dy = sin(t * 0.55 + phase) * 4
+            let dx = cos(t * 0.4 + phase) * 3
+            content()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topLeading) {
+                    Text(title).font(.brand(11)).tracking(2.4)
+                        .foregroundStyle(accent.opacity(0.5 + 0.5 * energy)).padding(14)
+                }
+                .background(.ultraThinMaterial)
+                .background(accent.opacity(0.04 + 0.08 * energy))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.18 + 0.42 * energy), lineWidth: 1))
+                .overlay(CornerTicks(accent: accent))
+                .shadow(color: accent.opacity(0.12 + 0.24 * energy), radius: 13 + 11 * energy)
+                .opacity(0.72 + 0.28 * energy)
+                .scaleEffect(1 + 0.012 * energy)
+                .offset(x: dx, y: dy)
+        }
+    }
+}
+
 // MARK: - Views
 
 struct LiveView: View {
@@ -165,32 +210,26 @@ struct LiveView: View {
     private var dashboard: some View {
         VStack(spacing: 14) {
             HStack(spacing: 14) {
-                RoomRadar(people: tel.people).panel("THE ROOM \u{2014} AS AURA HEARS IT")
+                FloatingTile(title: "THE ROOM \u{2014} AS AURA HEARS IT", energy: tel.roomEnergy, phase: 0) {
+                    RoomRadar(people: tel.people)
+                }
                 VStack(spacing: 14) {
-                    MindStream(lines: tel.stream).panel("THE MIND \u{2014} LIVE COGNITION")
-                    VitalsView(vitals: tel.vitals).panel("ON-DEVICE SYSTEM")
+                    FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 1.7) {
+                        MindStream(lines: tel.stream)
+                    }
+                    FloatingTile(title: "ON-DEVICE SYSTEM", energy: tel.sysEnergy, phase: 3.1, accent: OKGREEN) {
+                        VitalsView(vitals: tel.vitals)
+                    }
                 }
                 .frame(width: 320)
             }
             EgressBar(events: tel.eventsProcessed)
             if tel.isSimulated {
                 Text("DEMO STREAM \u{2014} live puck telemetry lands in P1")
-                    .font(.system(size: 10)).tracking(2).foregroundStyle(.secondary)
+                    .font(.brand(10)).tracking(2).foregroundStyle(EMBER.opacity(0.5))
             }
         }
-    }
-}
-
-private extension View {
-    func panel(_ title: String) -> some View {
-        self
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay(alignment: .topLeading) {
-                Text(title).font(.system(size: 11)).tracking(2.2).foregroundStyle(.secondary).padding(14)
-            }
-            .background(RadialGradient(colors: [Color(red: 0.07, green: 0.055, blue: 0.105), Color(red: 0.035, green: 0.027, blue: 0.06)], center: .top, startRadius: 2, endRadius: 520))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.06)))
+        .padding(16)
     }
 }
 
@@ -258,9 +297,9 @@ struct EgressBar: View {
     var body: some View {
         HStack(spacing: 24) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("0 BYTES").font(.system(size: 32, weight: .bold, design: .monospaced)).foregroundStyle(OKGREEN)
+                Text("0 BYTES").font(.brand(32)).foregroundStyle(OKGREEN)
                     .shadow(color: OKGREEN.opacity(0.4), radius: 14)
-                Text("SENT TO THE CLOUD \u{00B7} THIS SESSION").font(.system(size: 11)).tracking(1.6).foregroundStyle(OKGREEN.opacity(0.7))
+                Text("SENT TO THE CLOUD \u{00B7} THIS SESSION").font(.brand(11)).tracking(1.6).foregroundStyle(OKGREEN.opacity(0.7))
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
@@ -269,9 +308,11 @@ struct EgressBar: View {
             }
         }
         .padding(.horizontal, 26).frame(height: 88)
-        .background(RadialGradient(colors: [Color(red: 0.05, green: 0.12, blue: 0.09), Color(red: 0.027, green: 0.063, blue: 0.047)], center: .bottom, startRadius: 2, endRadius: 400))
+        .background(.ultraThinMaterial)
+        .background(OKGREEN.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(OKGREEN.opacity(0.18)))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(OKGREEN.opacity(0.22)))
+        .overlay(CornerTicks(accent: OKGREEN))
     }
 }
 
@@ -280,7 +321,7 @@ struct RevealOverlay: View {
     @ViewBuilder private func caption(_ e: Double) -> some View {
         if e > 1.4 {
             Text("BLE SECURE LINK ESTABLISHED \u{00B7} REVEALING YOUR ROOM")
-                .font(.system(size: 13)).tracking(2.5).foregroundStyle(.secondary).padding(.bottom, 60)
+                .font(.brand(13)).tracking(2.5).foregroundStyle(EMBER.opacity(0.7)).padding(.bottom, 60)
         }
     }
     var body: some View {
