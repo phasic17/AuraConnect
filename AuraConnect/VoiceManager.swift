@@ -3,7 +3,9 @@ import Combine
 import AVFoundation
 import Speech
 
-final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
+final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDelegate {
+    weak var bt: BluetoothManager?
+    override init() { super.init(); synth.delegate = self }
     @Published var listening = false
     @Published var speaking = false
     @Published var locked = false
@@ -118,7 +120,22 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         listening = false; level = 0
     }
     private func converse(_ t: String) {
-        play(acks.randomElement() ?? "aura_ack1", fallback: "I'm on it.")
+        if let bt = bt, bt.isConnected {
+            speaking = true   // thinking — the puck brain is answering
+            bt.askAura(t)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 30) { if self.speaking && !self.locked { self.speaking = false; self.beginListen() } }
+        } else {
+            play(acks.randomElement() ?? "aura_ack1", fallback: "I'm on it.")
+        }
+    }
+    func speakReply(_ r: String) {
+        endListen()
+        speaking = true
+        let u = AVSpeechUtterance(string: r); u.rate = 0.5
+        synth.speak(u)
+    }
+    func speechSynthesizer(_ synth: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async { self.speaking = false; if !self.locked { self.beginListen() } }
     }
 }
 

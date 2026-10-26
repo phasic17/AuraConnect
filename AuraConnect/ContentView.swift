@@ -81,6 +81,7 @@ struct ContentView: View {
         }
         .preferredColorScheme(.dark)
         .onChange(of: voice.locked) { _, locked in if !locked { assembleToken += 1 } }
+        .onAppear { voice.bt = bt; bt.onAuraReply = { [weak voice] r in voice?.speakReply(r) } }
     }
 
     @ViewBuilder

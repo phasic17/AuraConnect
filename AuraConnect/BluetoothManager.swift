@@ -8,6 +8,7 @@ private let AURA_SERVICE_UUID = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0
 private let AURA_CTRL_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F3")
 private let AURA_DATA_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F4")
 private let AURA_TELE_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F5")
+private let AURA_CHAT_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F6")
 
 enum LinkState: Equatable {
     case idle
@@ -118,6 +119,7 @@ final class BluetoothManager: NSObject, ObservableObject {
     @Published var isSending: Bool = false
     @Published var lastEvent: String = ""
     @Published var telemetry: PuckTelemetry? = nil
+    var onAuraReply: ((String) -> Void)? = nil
 
     // Last successful connection — used to distinguish "never paired" from
     // "session ended cleanly N seconds ago" so the status indicator can show
@@ -155,6 +157,7 @@ final class BluetoothManager: NSObject, ObservableObject {
     private var ctrlChar: CBCharacteristic?
     private var dataChar: CBCharacteristic?
     private var teleChar: CBCharacteristic?
+    private var chatChar: CBCharacteristic?
 
     private var sendTask: Task<Void, Never>?
     private var pendingAck: CheckedContinuation<Result<Void, Error>, Never>?
@@ -627,7 +630,7 @@ extension BluetoothManager: CBPeripheralDelegate {
             Task { @MainActor in self.log("Aura service not found") }
             return
         }
-        peripheral.discoverCharacteristics([AURA_CTRL_UUID, AURA_DATA_UUID, AURA_TELE_UUID], for: svc)
+        peripheral.discoverCharacteristics([AURA_CTRL_UUID, AURA_DATA_UUID, AURA_TELE_UUID, AURA_CHAT_UUID], for: svc)
     }
 
     nonisolated func peripheral(_ peripheral: CBPeripheral,
@@ -641,10 +644,12 @@ extension BluetoothManager: CBPeripheralDelegate {
         var ctrl: CBCharacteristic?
         var data: CBCharacteristic?
         var tele: CBCharacteristic?
+        var chat: CBCharacteristic?
         for c in service.characteristics ?? [] {
             if c.uuid == AURA_CTRL_UUID { ctrl = c }
             if c.uuid == AURA_DATA_UUID { data = c }
             if c.uuid == AURA_TELE_UUID { tele = c }
+            if c.uuid == AURA_CHAT_UUID { chat = c }
         }
         let name = peripheral.name ?? "Aura Puck"
         let id = peripheral.identifier
@@ -652,10 +657,12 @@ extension BluetoothManager: CBPeripheralDelegate {
             self.ctrlChar = ctrl
             self.dataChar = data
             self.teleChar = tele
+            self.chatChar = chat
             if let c = ctrl, c.properties.contains(.notify) {
                 peripheral.setNotifyValue(true, for: c)
             }
             if let t = tele { peripheral.setNotifyValue(true, for: t) }
+            if let ch = chat { peripheral.setNotifyValue(true, for: ch) }
             let d = AuraDevice(id: id, name: name, rssi: 0, peripheral: peripheral)
             self.state = .connected(d)
             self.lastConnectedDevice = d
@@ -668,6 +675,13 @@ extension BluetoothManager: CBPeripheralDelegate {
                                 didUpdateValueFor characteristic: CBCharacteristic,
                                 error: Error?) {
         guard let v = characteristic.value else { return }
+        if characteristic.uuid == AURA_CHAT_UUID {
+            Task { @MainActor in
+                if let obj = (try? JSONSerialization.jsonObject(with: v)) as? [String: Any],
+                   let r = obj["r"] as? String, !r.isEmpty { self.onAuraReply?(r) }
+            }
+            return
+        }
         if characteristic.uuid == AURA_TELE_UUID {
             Task { @MainActor in self.handleTelemetry(v) }
             return
@@ -718,5 +732,11 @@ extension BluetoothManager {
         self.telemetry = PuckTelemetry(temp: dbl("t"), memUsed: dbl("mu"), memTotal: dbl("mt"),
                                        models: int("mdl"), uptime: int("up"), load: dbl("load"),
                                        egress: int("eg") ?? 0, chat: chat)
+    }
+    func askAura(_ q: String) {
+        guard let ch = chatChar, let p = peripheral else { return }
+        if let d = try? JSONSerialization.data(withJSONObject: ["q": q]) {
+            p.writeValue(d, for: ch, type: .withResponse)
+        }
     }
 }
