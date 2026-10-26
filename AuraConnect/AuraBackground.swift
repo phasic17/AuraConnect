@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 import Foundation
 
-let BUILD_TAG = "v8"
+let BUILD_TAG = "v10"
 private let BG_HOT = Color(red: 1.0, green: 0.92, blue: 0.72)
 
 enum WorldMap {
@@ -176,7 +176,7 @@ private func drawWorldMap(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
     let cols = Double(WorldMap.cols), rows = Double(WorldMap.nrows)
     let mapH = H * 0.9, offY = H * 0.05
     let stepX = W / cols, stepY = mapH / rows
-    let period = 32.0
+    let period = 23.0
     let sweepX = (t / period - (t / period).rounded(.down)) * W
     let g = WorldMap.grid
     for r in 0..<WorldMap.nrows {

@@ -147,7 +147,7 @@ struct LiveView: View {
     }
     private func scheduleHarden() {
         hardened = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 13.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 9.6) {
             withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
         }
     }
