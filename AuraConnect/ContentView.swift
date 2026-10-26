@@ -62,7 +62,7 @@ struct ContentView: View {
                         LockButton { withAnimation { voice.lock() } }
                         SeverButton { withAnimation { showVault = true } }
                     }
-                    .padding(16)
+                    .padding(.vertical, 14).padding(.trailing, 16).padding(.leading, 246)
                     Spacer()
                 }
                 .zIndex(50)

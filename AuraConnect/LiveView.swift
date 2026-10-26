@@ -42,7 +42,7 @@ final class LiveTelemetry: ObservableObject {
             guard let self = self else { return }
             let l = self.lines[self.idx % self.lines.count]
             self.stream.append(StreamLine(kind: l.0, text: l.1))
-            if self.stream.count > 11 { self.stream.removeFirst() }
+            if self.stream.count > 6 { self.stream.removeFirst() }
             self.idx += 1
             self.eventsProcessed += Int.random(in: 10...60)
             withAnimation(.easeOut(duration: 1.0)) {
@@ -138,17 +138,53 @@ struct ActionTile: View {
     }
 }
 
+private let DOTFONT: [Character: [String]] = [
+    "0": ["01110","10001","10011","10101","11001","10001","01110"],
+    "1": ["00100","01100","00100","00100","00100","00100","01110"],
+    "2": ["01110","10001","00001","00010","00100","01000","11111"],
+    "3": ["11111","00010","00100","00010","00001","10001","01110"],
+    "4": ["00010","00110","01010","10010","11111","00010","00010"],
+    "5": ["11111","10000","11110","00001","00001","10001","01110"],
+    "6": ["00110","01000","10000","11110","10001","10001","01110"],
+    "7": ["11111","00001","00010","00100","01000","01000","01000"],
+    "8": ["01110","10001","10001","01110","10001","10001","01110"],
+    "9": ["01110","10001","10001","01111","00001","00010","01100"],
+    ":": ["00000","00100","00100","00000","00000","00100","00100"]
+]
+private func drawDotTime(_ ctx: GraphicsContext, _ size: CGSize, _ s: String, _ col: Color) {
+    let px = 2.0, spacing = 2.0
+    let totalW = Double(s.count) * (5 * px + spacing) - spacing
+    let startX = (Double(size.width) - totalW) / 2
+    let startY = (Double(size.height) - 7 * px) / 2
+    for (ci, ch) in s.enumerated() {
+        guard let rows = DOTFONT[ch] else { continue }
+        for (r, row) in rows.enumerated() {
+            for (cc, bit) in row.enumerated() {
+                if bit == "1" {
+                    let dx = startX + Double(ci) * (5 * px + spacing) + Double(cc) * px
+                    let dy = startY + Double(r) * px
+                    ctx.fill(Path(CGRect(x: dx, y: dy, width: px - 0.4, height: px - 0.4)), with: .color(col))
+                }
+            }
+        }
+    }
+}
+
 struct ClockCell: View {
     var city: String
     var tz: String
     var now: Date
     var body: some View {
         let f = DateFormatter(); f.timeZone = TimeZone(identifier: tz); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "HH:mm:ss"
-        return VStack(spacing: 1) {
-            Text(city).font(.brand(7)).tracking(1.1).foregroundStyle(Color(red: 1, green: 0.69, blue: 0.28).opacity(0.72))
-            Text(f.string(from: now)).font(.system(size: 12, weight: .semibold, design: .monospaced)).foregroundStyle(.white.opacity(0.9))
+        return VStack(spacing: 4) {
+            Text(city).font(.brand(7)).tracking(1.3).foregroundStyle(Color(red: 0.35, green: 0.82, blue: 1.0).opacity(0.8))
+            Canvas { ctx, size in drawDotTime(ctx, size, f.string(from: now), Color(red: 1, green: 0.69, blue: 0.28)) }
+                .frame(width: 96, height: 15)
         }
-        .frame(width: 72)
+        .padding(.horizontal, 9).padding(.vertical, 7)
+        .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(red: 1, green: 0.69, blue: 0.28).opacity(0.32), lineWidth: 1))
     }
 }
 
@@ -156,7 +192,7 @@ struct WorldClocks: View {
     private let zones: [(String, String)] = [("SF", "America/Los_Angeles"), ("NEW YORK", "America/New_York"), ("LONDON", "Europe/London"), ("DUBAI", "Asia/Dubai"), ("TOKYO", "Asia/Tokyo")]
     var body: some View {
         TimelineView(.periodic(from: Date(), by: 1)) { ctx in
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 ForEach(zones, id: \.0) { z in ClockCell(city: z.0, tz: z.1, now: ctx.date) }
             }
         }
@@ -261,7 +297,8 @@ struct LiveView: View {
             FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
                 MindStream(lines: tel.stream)
             }
-            .frame(height: 150)
+            .frame(height: 162)
+            .clipped()
             .assemble(0, 8, assembleToken)
             HStack(alignment: .top, spacing: 16) {
                 VStack(spacing: 16) {
