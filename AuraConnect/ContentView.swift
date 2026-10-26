@@ -45,14 +45,15 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             if showStartup {
-                StartupReveal(onDone: { withAnimation(.easeInOut(duration: 0.9)) { showStartup = false } })
+                StartupReveal(onDone: { withAnimation(.easeInOut(duration: 0.9)) { showStartup = false }; voice.activate() })
                     .transition(.opacity)
                     .zIndex(100)
             }
             VStack {
                 HStack(spacing: 10) {
                     Spacer()
-                    MicButton(voice: voice)
+                    ListeningPill(voice: voice)
+                    LockButton { withAnimation { voice.lock() } }
                     SeverButton { withAnimation { showVault = true } }
                 }
                 .padding(16)
@@ -65,6 +66,10 @@ struct ContentView: View {
                     withAnimation(.easeInOut(duration: 0.8)) { showVault = false }
                 })
                 .zIndex(200)
+            }
+            if voice.locked {
+                LockScreen(onUnlock: { withAnimation { voice.unlock() } })
+                    .zIndex(300)
             }
         }
         .preferredColorScheme(.dark)

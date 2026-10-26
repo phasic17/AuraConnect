@@ -1,44 +1,68 @@
 import SwiftUI
+import Foundation
 
-// PROJECT OMICRON — app-launch reveal. The canonical continuum ring, highly rendered:
-// a luminous gold circle pixelating counter-clockwise with a bright leading edge and a
-// glowing core, then dissolving into the app. Slow, cinematic — it breathes.
+// PROJECT OMICRON — app-launch reveal. The canonical continuum ring, high quality:
+// one clean luminous circle drawn on counter-clockwise with a bright hot leading edge
+// and a soft bloom, slow and deliberate, then held. No scatter, no flares.
 
-private let CEMBER = Color(red: 1, green: 0.69, blue: 0.28)
+private let CR_AMBER = Color(red: 1.0, green: 0.72, blue: 0.34)
+private let CR_WARM  = Color(red: 1.0, green: 0.82, blue: 0.50)
+private let CR_HOT   = Color(red: 1.0, green: 0.92, blue: 0.72)
 
 private func drawContinuum(_ ctx: GraphicsContext, _ size: CGSize, _ e: Double) {
-    let cx = size.width / 2
-    let cy = size.height / 2
-    let R = min(size.width, size.height) * 0.20
-    let prog = min(max((e - 0.35) / 2.6, 0), 1)   // ring fills 0..1 over ~2.6s
-    let N = 176
-    for i in 0..<N {
+    let cx = Double(size.width) / 2
+    let cy = Double(size.height) / 2
+    let R = min(Double(size.width), Double(size.height)) * 0.20
+    let prog = min(max((e - 0.6) / 4.2, 0), 1)       // slow draw-on over ~4.2s
+    let startA = -Double.pi / 2                        // top
+    let N = 260
+
+    var arc = Path()
+    var placed = 0
+    for i in 0...N {
         let frac = Double(i) / Double(N)
-        if frac > prog { continue }
-        let ang = -Double.pi / 2 - frac * .pi * 2    // start at top, pixelate COUNTER-CLOCKWISE
-        let lead = max(0, 1 - (prog - frac) / 0.16)  // 1 at the leading edge, fading behind
-        let bright = 0.30 + 0.70 * lead
-        let jr = R + sin(frac * 90 + e * 2) * 1.4     // faint radial shimmer (pixelating feel)
-        let x = cx + cos(ang) * jr
-        let y = cy + sin(ang) * jr
-        let hs = 10.0 + 11.0 * lead                   // glow halo
-        let haloRect = CGRect(x: x - hs, y: y - hs, width: hs * 2, height: hs * 2)
-        ctx.fill(Path(ellipseIn: haloRect), with: .color(Color(red: 1, green: 0.72, blue: 0.32).opacity(0.05 + 0.11 * lead)))
-        let s = 2.6 + 3.2 * lead                      // bright pixel
-        let col = Color(red: 1, green: 0.80 + 0.2 * lead, blue: 0.45 + 0.45 * lead)
-        ctx.fill(Path(ellipseIn: CGRect(x: x - s / 2, y: y - s / 2, width: s, height: s)), with: .color(col.opacity(bright)))
+        if frac > prog { break }
+        let ang = startA - frac * 2 * Double.pi        // counter-clockwise
+        let pt = CGPoint(x: cx + cos(ang) * R, y: cy + sin(ang) * R)
+        if placed == 0 { arc.move(to: pt) } else { arc.addLine(to: pt) }
+        placed += 1
     }
-    if prog > 0.03 {
-        ctx.stroke(Path(ellipseIn: CGRect(x: cx - R, y: cy - R, width: R * 2, height: R * 2)),
-                   with: .color(CEMBER.opacity(0.08 * prog)), lineWidth: 1)
+    if placed > 1 {
+        ctx.stroke(arc, with: .color(CR_AMBER.opacity(0.10)), style: StrokeStyle(lineWidth: 18, lineCap: .round, lineJoin: .round))
+        ctx.stroke(arc, with: .color(CR_WARM.opacity(0.24)),  style: StrokeStyle(lineWidth: 8,  lineCap: .round, lineJoin: .round))
+        ctx.stroke(arc, with: .color(CR_HOT),                 style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
     }
-    let pulse = 4 + 2 * sin(e * 3)
-    for k in stride(from: 5, through: 1, by: -1) {
+
+    if prog > 0.001 && prog < 0.999 {
+        let tipA = startA - prog * 2 * Double.pi
+        for j in 0..<9 {
+            let ang = tipA + Double(j) * 0.016 * 2 * Double.pi
+            let jr = R + (Double((j * 37) % 9) - 4) * 0.6
+            let s = 4.2 - Double(j) * 0.35
+            let x = cx + cos(ang) * jr
+            let y = cy + sin(ang) * jr
+            ctx.fill(Path(CGRect(x: x - s / 2, y: y - s / 2, width: s, height: s)),
+                     with: .color(CR_WARM.opacity(1 - Double(j) / 9.0)))
+        }
+        let hx = cx + cos(tipA) * R
+        let hy = cy + sin(tipA) * R
+        ctx.fill(Path(ellipseIn: CGRect(x: hx - 7, y: hy - 7, width: 14, height: 14)), with: .color(CR_HOT.opacity(0.5)))
+        ctx.fill(Path(ellipseIn: CGRect(x: hx - 3.5, y: hy - 3.5, width: 7, height: 7)), with: .color(.white))
+    }
+
+    let pulse = 5.0 + 2.0 * sin(e * 2)
+    for k in stride(from: 4, through: 1, by: -1) {
         let cr = Double(k) * pulse
         ctx.fill(Path(ellipseIn: CGRect(x: cx - cr, y: cy - cr, width: cr * 2, height: cr * 2)),
-                 with: .color(Color(red: 1, green: 0.86, blue: 0.56).opacity(0.09)))
+                 with: .color(Color(red: 1, green: 0.86, blue: 0.56).opacity(0.07)))
     }
-    ctx.fill(Path(ellipseIn: CGRect(x: cx - 4, y: cy - 4, width: 8, height: 8)), with: .color(.white))
+    ctx.fill(Path(ellipseIn: CGRect(x: cx - 3.5, y: cy - 3.5, width: 7, height: 7)), with: .color(.white))
+
+    if prog >= 0.999 {
+        let full = Path(ellipseIn: CGRect(x: cx - R, y: cy - R, width: R * 2, height: R * 2))
+        ctx.stroke(full, with: .color(CR_WARM.opacity(0.28)), style: StrokeStyle(lineWidth: 8))
+        ctx.stroke(full, with: .color(CR_HOT), style: StrokeStyle(lineWidth: 2.4))
+    }
 }
 
 struct StartupReveal: View {
@@ -46,11 +70,10 @@ struct StartupReveal: View {
     @State private var started = Date()
 
     @ViewBuilder private func wordmark(_ e: Double) -> some View {
-        if e > 2.9 {
+        if e > 4.9 {
             Text("A U R A   C O N N E C T")
-                .font(.system(size: 14, weight: .semibold))
-                .tracking(4)
-                .foregroundStyle(.white.opacity(min((e - 2.9) / 0.9, 1) * 0.85))
+                .font(.brand(14)).tracking(4)
+                .foregroundStyle(.white.opacity(min((e - 4.9) / 1.0, 1) * 0.9))
                 .padding(.bottom, 90)
         }
     }
@@ -65,9 +88,6 @@ struct StartupReveal: View {
             }
         }
         .ignoresSafeArea()
-        .onAppear {
-            started = Date()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { onDone() }
-        }
+        .onAppear { started = Date(); DispatchQueue.main.asyncAfter(deadline: .now() + 6.4) { onDone() } }
     }
 }
