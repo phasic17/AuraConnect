@@ -21,6 +21,12 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
             build
+      - name: Verify resources + ad-hoc sign
+        run: |
+          APP=$(find build -name "AuraConnect.app" -type d | head -1)
+          echo "=== Contents/Resources ==="; ls -la "$APP/Contents/Resources" || true
+          codesign --force --deep --sign - "$APP"
+          echo "=== signature ==="; codesign -dvvv "$APP" 2>&1 | head -12 || true
       - name: Package .dmg
         run: |
           APP=$(find build -name "AuraConnect.app" -type d | head -1)

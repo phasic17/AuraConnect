@@ -21,12 +21,15 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private var greeted = false
     private var permGranted = false
     private var permDenied = false
+    private var permRequested = false
     private let acks = ["aura_ack1", "aura_ack2", "aura_ack3", "aura_ack4"]
 
     func activate(greet: Bool = true) {
         guard !locked else { return }
         if permDenied { transcript = "(enable Microphone + Speech in System Settings ▸ Privacy)"; return }
         if permGranted { proceed(greet); return }
+        if permRequested { return }
+        permRequested = true
         ensurePermissions { ok in
             if ok { self.permGranted = true; self.proceed(greet) }
             else { self.permDenied = true; self.transcript = "(enable Microphone + Speech in System Settings ▸ Privacy)" }
