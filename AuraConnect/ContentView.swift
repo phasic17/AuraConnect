@@ -27,6 +27,7 @@ enum AuraSection: String, CaseIterable, Identifiable {
 struct ContentView: View {
     @EnvironmentObject var bt: BluetoothManager
     @State private var section: AuraSection = .live
+    @State private var showStartup = true
 
     var body: some View {
         ZStack {
@@ -38,6 +39,11 @@ struct ContentView: View {
 
                 detail
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            if showStartup {
+                StartupReveal(onDone: { withAnimation(.easeInOut(duration: 0.9)) { showStartup = false } })
+                    .transition(.opacity)
+                    .zIndex(100)
             }
         }
         .preferredColorScheme(.dark)
