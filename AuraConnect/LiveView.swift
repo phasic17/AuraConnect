@@ -313,11 +313,11 @@ struct LiveView: View {
                     ActionTile(t: "APPROVALS", accent: MG, big: "2 PENDING", sub: "ship-gate review \u{00B7} your call", kind: "ring", h: 116, ph: 2.1).assemble(4, 8, assembleToken)
                 }
                 VStack(spacing: 16) {
-                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: teleMem(tm), sub: "\(tm?.models ?? 0) models \u{00B7} AES link \u{00B7} 0 egress", kind: "bars", h: 204, ph: 2.7).assemble(5, 8, assembleToken)
+                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: teleMem(tm), sub: "\(tm?.models ?? 0) models \u{00B7} AES link \u{00B7} encrypted", kind: "bars", h: 204, ph: 2.7).assemble(5, 8, assembleToken)
                     ActionTile(t: "THERMAL", accent: OR, big: teleTemp(tm), sub: "puck core temperature", kind: "ring", h: 150, ph: 3.3).assemble(6, 8, assembleToken)
                 }
             }
-            EgressBar(events: tel.eventsProcessed)
+            LinkStatusBar(tm: bt.telemetry, connected: bt.isConnected)
                 .assemble(7, 8, assembleToken)
         }
         .padding(16)
@@ -415,6 +415,47 @@ struct EgressBar: View {
         .background(Color(red: 0.02, green: 0.04, blue: 0.03).opacity(0.42))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(OKGREEN.opacity(0.22)))
+        .overlay(CornerTicks(accent: OKGREEN))
+    }
+}
+
+struct LinkStatusBar: View {
+    var tm: PuckTelemetry?
+    var connected: Bool
+    private func up(_ s: Int?) -> String {
+        guard let s = s else { return "\u{2014}" }
+        if s >= 86400 { return "\(s / 86400)d \(s % 86400 / 3600)h" }
+        if s >= 3600 { return "\(s / 3600)h \(s % 3600 / 60)m" }
+        return "\(max(s / 60, 0))m"
+    }
+    @ViewBuilder private func stat(_ k: String, _ v: String) -> some View {
+        VStack(spacing: 2) {
+            Text(v).font(.brand(16)).foregroundStyle(.white)
+            Text(k).font(.brand(9)).tracking(1.5).foregroundStyle(OKGREEN.opacity(0.6))
+        }
+    }
+    var body: some View {
+        HStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.fill").font(.system(size: 13)).foregroundStyle(OKGREEN)
+                    Text("ENCRYPTED \u{00B7} ON-DEVICE").font(.brand(13)).tracking(2).foregroundStyle(OKGREEN)
+                }
+                Text(connected ? "Aura Puck \u{00B7} AES-CCM secure link \u{00B7} running on your device"
+                               : "awaiting secure link\u{2026}")
+                    .font(.system(size: 11)).foregroundStyle(OKGREEN.opacity(0.72))
+            }
+            Spacer()
+            HStack(spacing: 24) {
+                stat("UPTIME", up(tm?.uptime))
+                stat("LOAD", tm?.load.map { String(format: "%.2f", $0) } ?? "\u{2014}")
+                stat("MODELS", "\(tm?.models ?? 0)")
+            }
+        }
+        .padding(.horizontal, 26).frame(height: 78)
+        .background(Color(red: 0.02, green: 0.04, blue: 0.03).opacity(0.42))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(OKGREEN.opacity(0.3), lineWidth: 1))
         .overlay(CornerTicks(accent: OKGREEN))
     }
 }
