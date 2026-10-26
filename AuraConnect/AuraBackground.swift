@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 import Foundation
 
-let BUILD_TAG = "v13"
+let BUILD_TAG = "v14"
 private let BG_HOT = Color(red: 1.0, green: 0.92, blue: 0.72)
 
 enum WorldMap {
@@ -181,7 +181,7 @@ private func drawWorldMap(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
     let aspect = mapH / W
     let period = 20.0
     let swA = (t / period - (t / period).rounded(.down)) * 2 * Double.pi
-    let trail = 1.2
+    let trail = 0.6
     for r in 0..<WorldMap.nrows {
         let rowArr = g[r]
         for c in 0..<WorldMap.cols {
