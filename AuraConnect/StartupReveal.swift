@@ -20,7 +20,7 @@ struct StartupReveal: View {
     @State private var voice: AVAudioPlayer?
     private let WELCOME = "welcome, let's get started"
 
-    private func ringP(_ e: Double) -> Double { min(max((e - 0.6) / 8.0, 0), 1) }
+    private func ringP(_ e: Double) -> Double { min(max((e - 0.8) / 11.0, 0), 1) }
     private func welcomeShown(_ e: Double) -> String {
         let L = WELCOME.count
         var n = 0
@@ -63,15 +63,20 @@ struct StartupReveal: View {
                     )
                 }
                 centerContent(e)
+            }
+            .overlay(alignment: .bottom) {
                 if e >= 7.6 && e < 12.2 {
                     VStack(spacing: 8) {
-                        Text("VOICE AUTHENTICATION").font(.brand(10)).tracking(5).foregroundStyle(CR_AMBER.opacity(0.85))
-                        Text("PAUL CHOU   \u{00B7}   ALPHA  ALPHA  BRAVO").font(.brand(15)).tracking(2).foregroundStyle(.white.opacity(0.92))
+                        Text("VOICE AUTHENTICATION").font(.brand(11)).tracking(5).foregroundStyle(CR_AMBER.opacity(0.9))
+                        Text("PAUL CHOU   \u{00B7}   ALPHA  ALPHA  BRAVO").font(.brand(16)).tracking(2).foregroundStyle(.white.opacity(0.95))
                         authWave(e)
                     }
-                    .offset(y: 170)
+                    .padding(.bottom, 70)
                     .opacity(min((e - 7.6) / 0.8, 1) * min((12.2 - e) / 0.8, 1))
                 }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                Text("BUILD " + BUILD_TAG).font(.brand(9)).tracking(2).foregroundStyle(.white.opacity(0.28)).padding(16)
             }
             .overlay(alignment: .topLeading) {
                 let w = welcomeShown(e)

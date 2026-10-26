@@ -107,7 +107,7 @@ struct FloatingTile<Content: View>: View {
                     Text(title).font(.brand(11)).tracking(2.4)
                         .foregroundStyle(accent.opacity(0.5 + 0.5 * energy)).padding(14)
                 }
-                .background(Color(red: 0.03, green: 0.027, blue: 0.05).opacity(hardened ? 0.40 : 0.12))
+                .background(Color(red: 0.03, green: 0.027, blue: 0.05).opacity(hardened ? 0.30 : 0.08))
                 .background(accent.opacity(0.03 + 0.06 * energy))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.18 + 0.42 * energy), lineWidth: 1))
@@ -147,7 +147,7 @@ struct LiveView: View {
     }
     private func scheduleHarden() {
         hardened = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 15.6) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20.5) {
             withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
         }
     }

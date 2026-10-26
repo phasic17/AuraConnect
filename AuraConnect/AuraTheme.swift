@@ -63,7 +63,7 @@ private func thashT(_ i: Int, _ s: Double) -> Double { let v = sin(Double(i) * s
 
 struct PixelMask: View {
     var start: Date?
-    var dur: Double = 4.6
+    var dur: Double = 6.2
     private func colHash(_ c: Int) -> Double { let v = sin(Double(c) * 91.7) * 43758.5453; return v - v.rounded(.down) }
     private func cellHash(_ c: Int, _ r: Int) -> Double { let v = sin(Double(c) * 12.9898 + Double(r) * 78.233) * 43758.5453; return v - v.rounded(.down) }
     var body: some View {
@@ -72,7 +72,7 @@ struct PixelMask: View {
                 guard let s = start else { return }
                 let p = min(max(tl.date.timeIntervalSince(s) / dur, 0), 1)
                 if p >= 1 { return }
-                let cell = 7.0
+                let cell = 4.0
                 let cols = Int(ceil(size.width / cell)), rows = Int(ceil(size.height / cell))
                 for c in 0..<cols {
                     let off = colHash(c) * 0.3
@@ -97,7 +97,7 @@ struct AssembleEffect: ViewModifier {
     var count: Int
     var pull: CGSize
     var token: Int
-    private let dur = 4.6
+    private let dur = 6.2
     @State private var started: Date? = nil
     @State private var ordered = false
     @State private var jitter: CGSize = .zero

@@ -8,14 +8,14 @@ private func drawLock(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
         let r = 72.0 + Double(k) * 46
         let rect = CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)
         let col: Color = k % 2 == 0 ? Aura.danger : Aura.ember
-        let phase = (k % 2 == 0) ? t * 6 : t * -5
+        let phase = (k % 2 == 0) ? t * 3 : t * -2.5
         ctx.stroke(Path(ellipseIn: rect), with: .color(col.opacity(0.16)),
                    style: StrokeStyle(lineWidth: 1.5, dash: [8, 16], dashPhase: phase))
     }
     let pr = 54.0 + 6 * sin(t * 0.7)
     ctx.stroke(Path(ellipseIn: CGRect(x: cx - pr, y: cy - pr, width: pr * 2, height: pr * 2)),
                with: .color(Aura.danger.opacity(0.45)), lineWidth: 2)
-    let sw = (t / 14.0 - (t / 14.0).rounded(.down)) * Double.pi * 2
+    let sw = (t / 22.0 - (t / 22.0).rounded(.down)) * Double.pi * 2
     var wedge = Path()
     wedge.move(to: CGPoint(x: cx, y: cy))
     wedge.addArc(center: CGPoint(x: cx, y: cy), radius: 300, startAngle: .radians(sw - 0.22), endAngle: .radians(sw), clockwise: false)
