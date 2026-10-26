@@ -9,6 +9,7 @@ private let AURA_CTRL_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0
 private let AURA_DATA_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F4")
 private let AURA_TELE_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F5")
 private let AURA_CHAT_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F6")
+private let AURA_AUDIO_UUID   = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F7")
 
 enum LinkState: Equatable {
     case idle
@@ -120,6 +121,7 @@ final class BluetoothManager: NSObject, ObservableObject {
     @Published var lastEvent: String = ""
     @Published var telemetry: PuckTelemetry? = nil
     var onAuraReply: ((String) -> Void)? = nil
+    var onAuraVoice: ((Data) -> Void)? = nil
 
     // Last successful connection — used to distinguish "never paired" from
     // "session ended cleanly N seconds ago" so the status indicator can show
@@ -158,6 +160,8 @@ final class BluetoothManager: NSObject, ObservableObject {
     private var dataChar: CBCharacteristic?
     private var teleChar: CBCharacteristic?
     private var chatChar: CBCharacteristic?
+    private var audioChar: CBCharacteristic?
+    private var audioBuf = Data()
 
     private var sendTask: Task<Void, Never>?
     private var pendingAck: CheckedContinuation<Result<Void, Error>, Never>?
@@ -630,7 +634,7 @@ extension BluetoothManager: CBPeripheralDelegate {
             Task { @MainActor in self.log("Aura service not found") }
             return
         }
-        peripheral.discoverCharacteristics([AURA_CTRL_UUID, AURA_DATA_UUID, AURA_TELE_UUID, AURA_CHAT_UUID], for: svc)
+        peripheral.discoverCharacteristics([AURA_CTRL_UUID, AURA_DATA_UUID, AURA_TELE_UUID, AURA_CHAT_UUID, AURA_AUDIO_UUID], for: svc)
     }
 
     nonisolated func peripheral(_ peripheral: CBPeripheral,
@@ -645,11 +649,13 @@ extension BluetoothManager: CBPeripheralDelegate {
         var data: CBCharacteristic?
         var tele: CBCharacteristic?
         var chat: CBCharacteristic?
+        var audio: CBCharacteristic?
         for c in service.characteristics ?? [] {
             if c.uuid == AURA_CTRL_UUID { ctrl = c }
             if c.uuid == AURA_DATA_UUID { data = c }
             if c.uuid == AURA_TELE_UUID { tele = c }
             if c.uuid == AURA_CHAT_UUID { chat = c }
+            if c.uuid == AURA_AUDIO_UUID { audio = c }
         }
         let name = peripheral.name ?? "Aura Puck"
         let id = peripheral.identifier
@@ -658,11 +664,13 @@ extension BluetoothManager: CBPeripheralDelegate {
             self.dataChar = data
             self.teleChar = tele
             self.chatChar = chat
+            self.audioChar = audio
             if let c = ctrl, c.properties.contains(.notify) {
                 peripheral.setNotifyValue(true, for: c)
             }
             if let t = tele { peripheral.setNotifyValue(true, for: t) }
             if let ch = chat { peripheral.setNotifyValue(true, for: ch) }
+            if let a = audio { peripheral.setNotifyValue(true, for: a) }
             let d = AuraDevice(id: id, name: name, rssi: 0, peripheral: peripheral)
             self.state = .connected(d)
             self.lastConnectedDevice = d
@@ -675,6 +683,10 @@ extension BluetoothManager: CBPeripheralDelegate {
                                 didUpdateValueFor characteristic: CBCharacteristic,
                                 error: Error?) {
         guard let v = characteristic.value else { return }
+        if characteristic.uuid == AURA_AUDIO_UUID {
+            Task { @MainActor in self.handleAudio(v) }
+            return
+        }
         if characteristic.uuid == AURA_CHAT_UUID {
             Task { @MainActor in
                 if let obj = (try? JSONSerialization.jsonObject(with: v)) as? [String: Any],
@@ -737,6 +749,22 @@ extension BluetoothManager {
         guard let ch = chatChar, let p = peripheral else { return }
         if let d = try? JSONSerialization.data(withJSONObject: ["q": q]) {
             p.writeValue(d, for: ch, type: .withResponse)
+        }
+    }
+    func handleAudio(_ v: Data) {
+        guard let tag = v.first else { return }
+        let rest = v.count > 1 ? v.subdata(in: 1..<v.count) : Data()
+        if tag == 0 {
+            if let obj = (try? JSONSerialization.jsonObject(with: rest)) as? [String: Any] {
+                if obj["end"] != nil {
+                    let done = audioBuf; audioBuf = Data()
+                    if !done.isEmpty { onAuraVoice?(done) }
+                } else {
+                    audioBuf = Data()
+                }
+            }
+        } else {
+            audioBuf.append(rest)
         }
     }
 }

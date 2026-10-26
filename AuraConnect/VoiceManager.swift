@@ -119,13 +119,38 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
         request?.endAudio(); task?.cancel(); task = nil; request = nil
         listening = false; level = 0
     }
+    @Published var replyText: String = ""
+    private var awaitingVoice = false
     private func converse(_ t: String) {
         if let bt = bt, bt.isConnected {
             speaking = true   // thinking — the puck brain is answering
+            awaitingVoice = true
+            replyText = ""
             bt.askAura(t)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 30) { if self.speaking && !self.locked { self.speaking = false; self.beginListen() } }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 16) {
+                if self.awaitingVoice && !self.locked {
+                    self.awaitingVoice = false
+                    if !self.replyText.isEmpty { self.speakReply(self.replyText) }
+                    else { self.speaking = false; self.beginListen() }
+                }
+            }
         } else {
             play(acks.randomElement() ?? "aura_ack1", fallback: "I'm on it.")
+        }
+    }
+    func gotReplyText(_ r: String) { replyText = r }
+    func playVoiceData(_ d: Data) {
+        awaitingVoice = false
+        endListen()
+        speaking = true
+        do {
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("aura_reply.mp3")
+            try d.write(to: url)
+            let p = try AVAudioPlayer(contentsOf: url)
+            p.delegate = self; p.prepareToPlay(); player = p; p.play()
+        } catch {
+            speaking = false
+            if !locked { beginListen() }
         }
     }
     func speakReply(_ r: String) {
