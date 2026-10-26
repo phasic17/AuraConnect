@@ -182,6 +182,7 @@ struct FloatingTile<Content: View>: View {
 // MARK: - Views
 
 struct LiveView: View {
+    var assembleToken: Int = 0
     @EnvironmentObject var bt: BluetoothManager
     @StateObject private var tel = LiveTelemetry()
     @State private var revealing = false
@@ -213,17 +214,21 @@ struct LiveView: View {
                 FloatingTile(title: "THE ROOM \u{2014} AS AURA HEARS IT", energy: tel.roomEnergy, phase: 0) {
                     RoomRadar(people: tel.people)
                 }
+                .assemble(0, assembleToken)
                 VStack(spacing: 14) {
                     FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 1.7) {
                         MindStream(lines: tel.stream)
                     }
+                    .assemble(1, assembleToken)
                     FloatingTile(title: "ON-DEVICE SYSTEM", energy: tel.sysEnergy, phase: 3.1, accent: OKGREEN) {
                         VitalsView(vitals: tel.vitals)
                     }
+                    .assemble(2, assembleToken)
                 }
                 .frame(width: 320)
             }
             EgressBar(events: tel.eventsProcessed)
+                .assemble(3, assembleToken)
             if tel.isSimulated {
                 Text("DEMO STREAM \u{2014} live puck telemetry lands in P1")
                     .font(.brand(10)).tracking(2).foregroundStyle(EMBER.opacity(0.5))

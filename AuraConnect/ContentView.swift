@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var showStartup = true
     @StateObject private var voice = VoiceManager()
     @State private var showVault = false
+    @State private var assembleToken = 0
 
     var body: some View {
         ZStack {
@@ -73,6 +74,7 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onChange(of: voice.locked) { _, locked in if !locked { assembleToken += 1 } }
     }
 
     @ViewBuilder
@@ -83,7 +85,7 @@ struct ContentView: View {
 
             Group {
                 switch section {
-                case .live:     LiveView()
+                case .live:     LiveView(assembleToken: assembleToken)
                 case .console:  ConsoleView()
                 case .transfer: TransferView()
                 case .updates:  UpdatesView()

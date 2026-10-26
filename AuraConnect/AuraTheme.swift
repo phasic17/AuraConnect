@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreText
+import Foundation
 
 enum Aura {
     static let bg     = Color(red: 0.02, green: 0.02, blue: 0.045)
@@ -56,3 +57,33 @@ struct GlassTile: ViewModifier {
     }
 }
 extension View { func glass(_ a: Color = Aura.ember) -> some View { modifier(GlassTile(accent: a)) } }
+
+// Unlock "assemble" choreography: each tile fades in at a slightly random, overlapping
+// offset (staggered), then springs into its ordered grid slot.
+struct AssembleEffect: ViewModifier {
+    var index: Int
+    var token: Int
+    @State private var faded = false
+    @State private var ordered = false
+    @State private var scatter: CGSize = .zero
+    func body(content: Content) -> some View {
+        content
+            .opacity(faded ? 1 : 0)
+            .scaleEffect(ordered ? 1 : 0.94)
+            .offset(ordered ? .zero : scatter)
+            .onAppear { run() }
+            .onChange(of: token) { _, _ in run() }
+    }
+    private func run() {
+        let a = Double(index) * 2.399963                 // golden-angle spread of directions
+        let mag = 28.0 + Double((index * 53) % 42)        // 28..70 px, varied
+        scatter = CGSize(width: cos(a) * mag, height: sin(a) * mag - 6)
+        faded = false; ordered = false
+        withAnimation(.easeOut(duration: 1.1).delay(Double(index) * 0.3)) { faded = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+            withAnimation(.spring(response: 1.05, dampingFraction: 0.85).delay(Double(index) * 0.2)) { ordered = true }
+        }
+    }
+}
+extension View { func assemble(_ index: Int, _ token: Int) -> some View { modifier(AssembleEffect(index: index, token: token)) } }
+
