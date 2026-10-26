@@ -196,6 +196,17 @@ struct StartupReveal: View {
     private func goWelcomeSoon() {}
     private func scheduleFromVoiceprint() {}
     private func finishOut() {
+        // Gently fade the loading music to silence rather than letting it cut off
+        // abruptly when the reveal view (and its player) is torn down on login.
+        if let m = music {
+            let steps = 28, dur = 2.0, v0 = m.volume
+            for i in 1...steps {
+                DispatchQueue.main.asyncAfter(deadline: .now() + dur * Double(i) / Double(steps)) {
+                    self.music?.volume = v0 * Float(1.0 - Double(i) / Double(steps))
+                    if i == steps { self.music?.stop(); self.music = nil }
+                }
+            }
+        }
         withAnimation(.easeInOut(duration: 1.3)) { fadingOut = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { onDone() }
     }

@@ -24,13 +24,25 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
     private var permGranted = false
     private var permDenied = false
     private var permRequested = false
+    private var pendingGreet: Bool? = nil
     private let acks = ["aura_ack1", "aura_ack2", "aura_ack3", "aura_ack4"]
+
+    // Prompt for mic + speech at the VERY start of launch, so the two macOS dialogs
+    // appear up front and nothing pops up after the startup reveal finishes.
+    func requestPermissionsEarly() {
+        guard !permRequested else { return }
+        permRequested = true
+        ensurePermissions { ok in
+            if ok { self.permGranted = true } else { self.permDenied = true }
+            if let g = self.pendingGreet { self.pendingGreet = nil; if ok { self.proceed(g) } else { self.transcript = "(enable Microphone + Speech in System Settings ▸ Privacy)" } }
+        }
+    }
 
     func activate(greet: Bool = true) {
         guard !locked else { return }
         if permDenied { transcript = "(enable Microphone + Speech in System Settings ▸ Privacy)"; return }
         if permGranted { proceed(greet); return }
-        if permRequested { return }
+        if permRequested { pendingGreet = greet; return }   // early request in flight — proceed once it resolves
         permRequested = true
         ensurePermissions { ok in
             if ok { self.permGranted = true; self.proceed(greet) }
