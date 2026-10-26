@@ -59,10 +59,11 @@ struct GlassTile: ViewModifier {
 extension View { func glass(_ a: Color = Aura.ember) -> some View { modifier(GlassTile(accent: a)) } }
 
 
-// Unlock choreography: each tile PIXELATES in (block-dissolve), one at a time and slow,
-// at a random overlapping offset; once the last has materialized, they order into the grid.
+private func thashT(_ i: Int, _ s: Double) -> Double { let v = sin(Double(i) * s) * 43758.5453; return v - v.rounded(.down) }
+
 struct PixelMask: View {
     var start: Date?
+    var dur: Double = 2.6
     private func cellHash(_ c: Int, _ r: Int) -> Double {
         let v = sin(Double(c) * 12.9898 + Double(r) * 78.233) * 43758.5453
         return v - v.rounded(.down)
@@ -71,18 +72,17 @@ struct PixelMask: View {
         TimelineView(.animation) { tl in
             Canvas { ctx, size in
                 guard let s = start else { return }
-                let p = min(max(tl.date.timeIntervalSince(s) / 1.6, 0), 1)
+                let p = min(max(tl.date.timeIntervalSince(s) / dur, 0), 1)
                 if p >= 1 { return }
                 let cell = 15.0
-                let cols = Int(ceil(size.width / cell))
-                let rows = Int(ceil(size.height / cell))
+                let cols = Int(ceil(size.width / cell)), rows = Int(ceil(size.height / cell))
                 for r in 0..<rows {
                     for c in 0..<cols {
                         let h = cellHash(c, r)
                         if h > p {
-                            let aedge = min((h - p) / 0.09, 1)
+                            let aedge = min((h - p) / 0.08, 1)
                             ctx.fill(Path(CGRect(x: Double(c) * cell, y: Double(r) * cell, width: cell + 0.7, height: cell + 0.7)),
-                                     with: .color(Color(red: 0.02, green: 0.016, blue: 0.03).opacity(0.96 * aedge)))
+                                     with: .color(Color(red: 0.03, green: 0.025, blue: 0.045).opacity(0.97 * aedge)))
                         }
                     }
                 }
@@ -93,31 +93,37 @@ struct PixelMask: View {
     }
 }
 
+// Each tile is hidden until its turn, then PIXELATES in (slow) at a central, overlapping
+// offset; once the last tile has materialized they all spring out to their grid slots.
 struct AssembleEffect: ViewModifier {
     var index: Int
     var count: Int
+    var pull: CGSize
     var token: Int
+    private let dur = 2.6
     @State private var started: Date? = nil
     @State private var ordered = false
-    @State private var scatter: CGSize = .zero
+    @State private var jitter: CGSize = .zero
     func body(content: Content) -> some View {
         content
-            .overlay(PixelMask(start: started))
+            .overlay(PixelMask(start: started, dur: dur))
             .opacity(started == nil ? 0 : 1)
-            .offset(ordered ? .zero : scatter)
+            .offset(ordered ? .zero : CGSize(width: pull.width + jitter.width, height: pull.height + jitter.height))
+            .zIndex(Double(index))
             .onAppear { run() }
             .onChange(of: token) { _, _ in run() }
     }
     private func run() {
-        let dur = 1.7
-        let a = Double(index) * 2.399963
-        let mag = 55.0 + Double((index * 53) % 70)
-        scatter = CGSize(width: cos(a) * mag, height: sin(a) * mag - 10)
+        jitter = CGSize(width: (thashT(index, 3.1) - 0.5) * 70, height: (thashT(index, 7.7) - 0.5) * 26)
         started = nil; ordered = false
         DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * dur) { started = Date() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(count) * dur + 0.6) {
-            withAnimation(.spring(response: 1.15, dampingFraction: 0.86)) { ordered = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(count) * dur + 0.5) {
+            withAnimation(.spring(response: 1.2, dampingFraction: 0.86)) { ordered = true }
         }
     }
 }
-extension View { func assemble(_ index: Int, _ count: Int, _ token: Int) -> some View { modifier(AssembleEffect(index: index, count: count, token: token)) } }
+extension View {
+    func assemble(_ index: Int, _ count: Int, _ pullX: Double, _ pullY: Double, _ token: Int) -> some View {
+        modifier(AssembleEffect(index: index, count: count, pull: CGSize(width: pullX, height: pullY), token: token))
+    }
+}

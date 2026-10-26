@@ -147,14 +147,14 @@ struct LiveView: View {
             FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0) {
                 MindStream(lines: tel.stream)
             }
-            .assemble(0, 3, assembleToken)
+            .assemble(0, 3, 0, 185, assembleToken)
             FloatingTile(title: "ON-DEVICE SYSTEM", energy: tel.sysEnergy, phase: 1.6, accent: OKGREEN) {
                 VitalsView(vitals: tel.vitals)
             }
             .frame(height: 150)
-            .assemble(1, 3, assembleToken)
+            .assemble(1, 3, 0, 15, assembleToken)
             EgressBar(events: tel.eventsProcessed)
-                .assemble(2, 3, assembleToken)
+                .assemble(2, 3, 0, -195, assembleToken)
             if tel.isSimulated {
                 Text("DEMO STREAM \u{2014} live puck telemetry lands in P1")
                     .font(.brand(10)).tracking(2).foregroundStyle(EMBER.opacity(0.5))
