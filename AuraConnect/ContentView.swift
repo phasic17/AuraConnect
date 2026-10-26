@@ -49,7 +49,7 @@ struct ContentView: View {
                 .transition(.opacity)
             }
             if showStartup {
-                StartupReveal(onDone: { voice.activate(greet: false); withAnimation(.easeInOut(duration: 1.6)) { showStartup = false } })
+                StartupReveal(bt: bt, onDone: { voice.activate(greet: false); withAnimation(.easeInOut(duration: 1.6)) { showStartup = false } })
                     .transition(.opacity)
                     .zIndex(100)
             }

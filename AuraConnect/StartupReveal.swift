@@ -39,6 +39,7 @@ struct PuckCard: View {
 
 struct StartupReveal: View {
     var onDone: () -> Void
+    @ObservedObject var bt: BluetoothManager
     @State private var started = Date()
     @State private var phase = 0          // 0 init, 1 detect, 2 connect, 3 voiceprint, 4 welcome
     @State private var phaseStart = Date()
@@ -46,9 +47,7 @@ struct StartupReveal: View {
     @State private var fadingOut = false
     @State private var music: AVAudioPlayer?
     @State private var voice: AVAudioPlayer?
-    private let pucks = [DetectedPuck(id: 0, name: "AURA-ONYX \u{00B7} 7F3A", rssi: "-41dBm", pearl: false),
-                         DetectedPuck(id: 1, name: "AURA-PEARL \u{00B7} 2B1C", rssi: "-56dBm", pearl: true),
-                         DetectedPuck(id: 2, name: "AURA-ONYX \u{00B7} 9E4D", rssi: "-63dBm", pearl: false)]
+    private var liveDevices: [AuraDevice] { Array(bt.devices.prefix(3)) }
     private let PHRASE = "PAUL CHOU   \u{00B7}   ALPHA   ALPHA   BRAVO"
 
     private func typed(_ s: String, _ el: Double, _ start: Double, _ rate: Double) -> String {
@@ -60,7 +59,7 @@ struct StartupReveal: View {
     private func header(_ e: Double, _ pe: Double) -> String {
         switch phase {
         case 0: return typed("initializing... standby for puck detection", e, 1.2, 0.08)
-        case 1: return typed("3 pucks detected \u{2014} select your puck", pe, 0.2, 0.05)
+        case 1: return typed(liveDevices.isEmpty ? "scanning for your puck..." : "\(liveDevices.count) puck\(liveDevices.count == 1 ? "" : "s") detected \u{2014} select", pe, 0.2, 0.05)
         case 2: return typed("connecting & syncing now...", pe, 0.1, 0.05)
         case 3: return typed("voice authentication", pe, 0.2, 0.05)
         default: return "identity confirmed \u{00B7} welcome back"
@@ -80,7 +79,7 @@ struct StartupReveal: View {
                     centerLayer(e, pe, cx, cy, D)
                     if phase == 1 || phase == 2 {
                         Canvas { ctx, _ in
-                            for i in 0..<pucks.count {
+                            for i in 0..<liveDevices.count {
                                 let ang = (-90.0 + Double(i) * 120.0) * Double.pi / 180.0
                                 let edge = CGPoint(x: cx + cos(ang) * (D / 2), y: cy + sin(ang) * (D / 2))
                                 let pos = CGPoint(x: cx + cos(ang) * (D * 0.80), y: cy + sin(ang) * (D * 0.80))
@@ -92,11 +91,20 @@ struct StartupReveal: View {
                             }
                         }
                         .opacity(min(pe / 0.6, 1))
-                        ForEach(Array(pucks.enumerated()), id: \.element.id) { pair in
+                        ForEach(Array(liveDevices.enumerated()), id: \.element.id) { pair in
                             let ang = (-90.0 + Double(pair.offset) * 120.0) * Double.pi / 180.0
-                            PuckCard(puck: pair.element, state: cardState(pair.element.id), tap: { if phase == 1 { goConnect(pair.element.id) } })
+                            let dev = pair.element
+                            PuckCard(puck: DetectedPuck(id: pair.offset, name: dev.name, rssi: "\(dev.rssi) dBm", pearl: dev.name.lowercased().contains("pearl")),
+                                     state: cardState(pair.offset),
+                                     tap: { if phase == 1 { goConnect(dev, pair.offset) } })
                                 .position(x: cx + cos(ang) * (D * 0.80), y: cy + sin(ang) * (D * 0.80))
                                 .opacity(min(pe / 0.8, 1))
+                        }
+                        if liveDevices.isEmpty && phase == 1 {
+                            VStack(spacing: 12) {
+                                ProgressView().tint(CR_AMBER)
+                                Text("SCANNING FOR PUCKS\u{2026}").font(.brand(11)).tracking(3).foregroundStyle(CR_AMBER.opacity(0.8))
+                            }.position(x: cx, y: cy)
                         }
                     }
                 }
@@ -114,6 +122,7 @@ struct StartupReveal: View {
         }
         .ignoresSafeArea()
         .onAppear { runSequence() }
+        .onChange(of: bt.isConnected) { _, now in if now && phase == 2 { goVoiceprint() } }
     }
 
     private func cardState(_ id: Int) -> Int {
@@ -174,9 +183,15 @@ struct StartupReveal: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 6.5) { if self.phase == 0 { self.phase = 1; self.phaseStart = Date() } }
     }
-    private func goConnect(_ i: Int) {
+    private func goConnect(_ dev: AuraDevice, _ i: Int) {
         selected = i; phase = 2; phaseStart = Date()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) { self.phase = 3; self.phaseStart = Date(); self.play("aura_auth"); DispatchQueue.main.asyncAfter(deadline: .now() + 5.6) { self.afterVoiceprint() } }
+        bt.select(dev); bt.connectSelected()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12.0) { if self.phase == 2 { self.goVoiceprint() } }
+    }
+    private func goVoiceprint() {
+        guard phase == 2 else { return }
+        phase = 3; phaseStart = Date(); play("aura_auth")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.6) { self.afterVoiceprint() }
     }
     private func goWelcomeSoon() {}
     private func scheduleFromVoiceprint() {}
