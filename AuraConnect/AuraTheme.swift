@@ -96,8 +96,8 @@ struct AssembleEffect: ViewModifier {
     var index: Int
     var count: Int
     var token: Int
-    private let dur = 3.3
-    private let stagger = 0.53
+    private let dur = 5.5
+    private let stagger = 0.85
     @State private var started: Date? = nil
     @State private var ordered = false
     @State private var pull: CGSize = .zero
@@ -117,7 +117,7 @@ struct AssembleEffect: ViewModifier {
         started = nil; ordered = false
         DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * stagger) { started = Date() }
         DispatchQueue.main.asyncAfter(deadline: .now() + Double(count) * stagger + dur + 0.4) {
-            withAnimation(.spring(response: 1.25, dampingFraction: 0.9)) { ordered = true }
+            withAnimation(.spring(response: 1.9, dampingFraction: 0.92)) { ordered = true }
         }
     }
 }
