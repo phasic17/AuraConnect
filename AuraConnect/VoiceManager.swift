@@ -2,6 +2,9 @@ import SwiftUI
 import Combine
 import AVFoundation
 import Speech
+import AppKit
+
+enum AuraPermState { case unknown, requesting, granted, denied }
 
 final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDelegate {
     weak var bt: BluetoothManager?
@@ -11,6 +14,8 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
     @Published var locked = false
     @Published var transcript = ""
     @Published var level: Double = 0
+    @Published var permState: AuraPermState = .unknown
+    private var preferOnDevice = true
 
     private let recognizer = SFSpeechRecognizer()
     private let engine = AVAudioEngine()
@@ -32,9 +37,24 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
     func requestPermissionsEarly() {
         guard !permRequested else { return }
         permRequested = true
+        permState = .requesting
         ensurePermissions { ok in
-            if ok { self.permGranted = true } else { self.permDenied = true }
+            if ok { self.permGranted = true; self.permState = .granted }
+            else { self.permDenied = true; self.permState = .denied }
             if let g = self.pendingGreet { self.pendingGreet = nil; if ok { self.proceed(g) } else { self.transcript = "(enable Microphone + Speech in System Settings ▸ Privacy)" } }
+        }
+    }
+
+    // Re-read the live auth statuses (after the user toggles System Settings and returns).
+    func recheckPermissions() {
+        let mic = AVCaptureDevice.authorizationStatus(for: .audio)
+        let sp = SFSpeechRecognizer.authorizationStatus()
+        if mic == .authorized && sp == .authorized {
+            permGranted = true; permDenied = false; permState = .granted
+        } else if mic == .denied || mic == .restricted || sp == .denied || sp == .restricted {
+            permDenied = true; permState = .denied
+        } else if !permRequested {
+            requestPermissionsEarly()
         }
     }
 
@@ -108,14 +128,24 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
         guard !locked, !speaking, engineStarted, request == nil else { return }
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
-        // Privacy: force on-device recognition so audio NEVER leaves the Mac (no Apple cloud).
-        if recognizer?.supportsOnDeviceRecognition == true { req.requiresOnDeviceRecognition = true }
+        // Prefer on-device (audio never leaves the Mac). If the on-device model isn't
+        // installed, recognition errors — we detect that and fall back so voice still works.
+        if preferOnDevice, recognizer?.supportsOnDeviceRecognition == true { req.requiresOnDeviceRecognition = true }
+        let wasOnDevice = req.requiresOnDeviceRecognition
         request = req
         listening = true; transcript = ""
         task = recognizer?.recognitionTask(with: req) { res, err in
             DispatchQueue.main.async {
                 if let r = res { self.transcript = r.bestTranscription.formattedString; self.armSilence() }
-                if err != nil { self.endListen() }
+                if err != nil {
+                    if wasOnDevice && self.preferOnDevice {
+                        self.preferOnDevice = false        // on-device unavailable — fall back to standard recognition
+                        self.endListen()
+                        if !self.locked && !self.speaking { self.beginListen() }
+                    } else {
+                        self.endListen()
+                    }
+                }
             }
         }
     }
@@ -212,5 +242,51 @@ struct SeverButton: View {
                 .background(.ultraThinMaterial, in: Capsule())
                 .overlay(Capsule().stroke(Aura.danger.opacity(0.5), lineWidth: 1))
         }.buttonStyle(.plain)
+    }
+}
+
+// Gate: the app does not launch its experience until mic + speech are granted.
+struct PermissionGate: View {
+    @ObservedObject var voice: VoiceManager
+    var body: some View {
+        let denied = voice.permState == .denied
+        let requesting = voice.permState == .requesting
+        return ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 20) {
+                if let u = Bundle.main.url(forResource: "continuum_hq", withExtension: "png"), let ns = NSImage(contentsOf: u) {
+                    Image(nsImage: ns).resizable().interpolation(.high).scaledToFit().frame(width: 126, height: 126).opacity(0.92)
+                }
+                Text("AURA CONNECT").font(.brand(16)).tracking(6).foregroundStyle(.white.opacity(0.95))
+                Text(denied
+                     ? "Aura needs Microphone and Speech Recognition to hear you.\nEnable them for AuraConnect in System Settings ▸ Privacy & Security, then continue."
+                     : "Aura needs your microphone and speech recognition to listen and respond.\nSpeech is processed on your Mac — nothing leaves the device.")
+                    .multilineTextAlignment(.center).font(.system(size: 13)).foregroundStyle(.white.opacity(0.68))
+                    .fixedSize(horizontal: false, vertical: true).frame(maxWidth: 440)
+                if denied {
+                    HStack(spacing: 12) {
+                        gateButton("Open System Settings") { openPrivacy() }
+                        gateButton("I've enabled it \u{2014} continue") { voice.recheckPermissions() }
+                    }
+                } else {
+                    gateButton(requesting ? "Waiting for your approval\u{2026}" : "Grant access") { voice.requestPermissionsEarly() }
+                }
+            }
+        }
+        .onAppear { voice.requestPermissionsEarly() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in voice.recheckPermissions() }
+    }
+    @ViewBuilder private func gateButton(_ t: String, _ a: @escaping () -> Void) -> some View {
+        Button(action: a) {
+            Text(t).font(.brand(12)).tracking(1.5).foregroundStyle(.white)
+                .padding(.horizontal, 20).frame(height: 42)
+                .background(Color.white.opacity(0.1), in: Capsule())
+                .overlay(Capsule().stroke(Color.white.opacity(0.35), lineWidth: 1))
+        }.buttonStyle(.plain)
+    }
+    private func openPrivacy() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }

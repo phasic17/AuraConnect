@@ -39,6 +39,10 @@ struct ContentView: View {
         ZStack {
             AuraBackground(energy: bt.isConnected ? 1.1 : 0.5)
 
+            if voice.permState != .granted {
+                PermissionGate(voice: voice).transition(.opacity).zIndex(400)
+            } else {
+
             if !showStartup {
                 HStack(spacing: 0) {
                     Sidebar(section: $section)
@@ -81,6 +85,7 @@ struct ContentView: View {
                 LockScreen(onUnlock: { withAnimation { voice.unlock() } })
                     .zIndex(300)
             }
+            }   // end: permission-granted gate
         }
         .preferredColorScheme(.dark)
         .onChange(of: voice.locked) { _, locked in if !locked { assembleToken += 1 } }
