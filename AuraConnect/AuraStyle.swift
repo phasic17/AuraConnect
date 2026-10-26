@@ -1,9 +1,9 @@
 import SwiftUI
 
 enum AuraTheme {
-    static let auraBlue       = Color(red: 0.36, green: 0.78, blue: 1.00)
-    static let auraBlueDeep   = Color(red: 0.10, green: 0.42, blue: 0.92)
-    static let bgBase         = Color(red: 0.04, green: 0.05, blue: 0.07)
+    static let auraBlue       = Color(red: 1.00, green: 0.69, blue: 0.28)
+    static let auraBlueDeep   = Color(red: 0.85, green: 0.45, blue: 0.12)
+    static let bgBase         = Color(red: 0.015, green: 0.012, blue: 0.022)
     static let panelBase      = Color.white.opacity(0.04)
     static let panelStroke    = Color.white.opacity(0.08)
     static let textPrimary    = Color.white

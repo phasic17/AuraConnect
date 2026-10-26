@@ -13,7 +13,7 @@ final class LiveTelemetry: ObservableObject {
 
     @Published var people: [Person] = [
         .init(name: "Paul", bearing: -0.5, dist: 0.55, activity: 1.0, color: Color(red: 1, green: 0.69, blue: 0.28)),
-        .init(name: "guest \u{00B7} unverified", bearing: 2.1, dist: 0.80, activity: 0.30, color: Color(red: 0.5, green: 0.85, blue: 1.0)),
+        .init(name: "guest \u{00B7} unverified", bearing: 2.1, dist: 0.80, activity: 0.30, color: Color(red: 0.6, green: 0.64, blue: 0.72)),
         .init(name: "TV \u{00B7} ambient", bearing: -2.4, dist: 0.95, activity: 0.15, color: Color(white: 0.42))
     ]
     @Published var stream: [StreamLine] = []
@@ -92,7 +92,7 @@ private func drawRadar(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, _ pe
         if i == 0 { wave.move(to: p) } else { wave.addLine(to: p) }
     }
     wave.closeSubpath()
-    ctx.stroke(wave, with: .color(Color(red: 0.5, green: 0.85, blue: 1).opacity(0.22)), lineWidth: 1.2)
+    ctx.stroke(wave, with: .color(Color(red: 1, green: 0.72, blue: 0.34).opacity(0.16)), lineWidth: 1.2)
     let sw = (t.truncatingRemainder(dividingBy: 2.6)) / 2.6 * .pi * 2
     var wedge = Path()
     wedge.move(to: CGPoint(x: cx, y: cy))
@@ -125,7 +125,7 @@ private func drawReveal(_ ctx: GraphicsContext, _ size: CGSize, _ e: Double) {
             let y = (e * 520 + seed * 40).truncatingRemainder(dividingBy: size.height + 120) - 60
             let gl = glyphs[(i + Int(e * 8)) % 6]
             let lit = (i % 23) == (Int(e * 5) % 23)
-            let col: Color = lit ? EMBER : Color(red: 0.47, green: 0.85, blue: 1).opacity(0.25 + 0.5 * a)
+            let col: Color = lit ? EMBER : Color(red: 1, green: 0.72, blue: 0.34).opacity(0.18 + 0.4 * a)
             ctx.draw(Text(gl).font(.system(size: 14)).foregroundStyle(col), at: CGPoint(x: Double(i) * 16 + 8, y: y))
         }
     }
@@ -250,7 +250,7 @@ struct MindStream: View {
         switch k {
         case "q": return .white
         case "j": return EMBER
-        case "m": return Color(red: 0.5, green: 0.85, blue: 1)
+        case "m": return Color(red: 1, green: 0.78, blue: 0.5)
         default:  return .secondary
         }
     }
