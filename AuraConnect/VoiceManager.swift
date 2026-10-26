@@ -3,64 +3,66 @@ import Combine
 import AVFoundation
 import Speech
 
-// Always-on conversational voice. Auto-greets, listens continuously, replies, loops.
-// Silence-endpointed so it never transcribes its own TTS. LOCK stops everything.
-// P1: stream mic/STT/TTS off the puck's AI chip over the BLE DATA characteristic;
-// converse() is the seam — POST the transcript to the puck brain and speak its reply.
-
-final class VoiceManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
+// Always-on conversational voice in Aura's ACTUAL voice (bundled piper renders).
+// Requests Speech permission at most once. P1: puck brain streams real replies over BLE.
+final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var listening = false
     @Published var speaking = false
     @Published var locked = false
     @Published var transcript = ""
-    @Published var lastReply = ""
     @Published var level: Double = 0
 
-    private let synth = AVSpeechSynthesizer()
     private let recognizer = SFSpeechRecognizer()
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var silence: Timer?
+    private var player: AVAudioPlayer?
+    private let synth = AVSpeechSynthesizer()
     private var greeted = false
-
-    override init() { super.init(); synth.delegate = self }
+    private let acks = ["aura_ack1", "aura_ack2", "aura_ack3", "aura_ack4"]
 
     func activate() {
         guard !locked else { return }
-        if !greeted { greeted = true; speak("I'm here. Just talk to me \u{2014} I'm listening.") }
+        if !greeted { greeted = true; play("aura_greeting", fallback: "I'm here, Paul. Just talk to me, I'm listening.") }
         else { startListening() }
     }
-    func lock() {
-        locked = true
-        stopListening()
-        synth.stopSpeaking(at: .immediate)
-        speaking = false
-    }
+    func lock() { locked = true; stopListening(); player?.stop(); synth.stopSpeaking(at: .immediate); speaking = false }
     func unlock() { locked = false; activate() }
 
-    func speak(_ s: String) {
-        lastReply = s
+    private func play(_ resource: String, fallback: String) {
         stopListening()
         speaking = true
-        let u = AVSpeechUtterance(string: s)
-        u.rate = 0.5
-        synth.speak(u)
-    }
-    func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async {
-            self.speaking = false
-            if !self.locked { self.startListening() }
+        if let url = Bundle.main.url(forResource: resource, withExtension: "m4a"),
+           let p = try? AVAudioPlayer(contentsOf: url) {
+            p.delegate = self
+            player = p
+            p.play()
+        } else {
+            let u = AVSpeechUtterance(string: fallback); u.rate = 0.5
+            synth.speak(u)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { self.finishedSpeaking() }
         }
+    }
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) { finishedSpeaking() }
+    private func finishedSpeaking() {
+        speaking = false
+        if !locked { startListening() }
     }
 
     private func startListening() {
         guard !locked, !speaking, !listening else { return }
-        SFSpeechRecognizer.requestAuthorization { auth in
-            DispatchQueue.main.async {
-                guard auth == .authorized else { self.transcript = "(enable Speech Recognition in System Settings)"; return }
-                self.begin()
+        switch SFSpeechRecognizer.authorizationStatus() {
+        case .authorized:
+            begin()
+        case .notDetermined:
+            SFSpeechRecognizer.requestAuthorization { s in
+                DispatchQueue.main.async {
+                    if s == .authorized { self.begin() } else { self.transcript = "(enable Speech Recognition in System Settings)" }
+                }
             }
+        default:
+            transcript = "(Speech access denied \u{2014} System Settings \u{25B8} Privacy)"
         }
     }
     private func begin() {
@@ -86,10 +88,7 @@ final class VoiceManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
             transcript = ""
             task = recognizer?.recognitionTask(with: req) { res, err in
                 DispatchQueue.main.async {
-                    if let r = res {
-                        self.transcript = r.bestTranscription.formattedString
-                        self.armSilence()
-                    }
+                    if let r = res { self.transcript = r.bestTranscription.formattedString; self.armSilence() }
                     if err != nil { self.stopListening() }
                 }
             }
@@ -114,8 +113,8 @@ final class VoiceManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         listening = false; level = 0
     }
     private func converse(_ t: String) {
-        // P0: local acknowledgement. P1: POST `t` to the puck brain over BLE, speak the streamed reply.
-        speak("You said: \(t). I'm on it.")
+        // P0: acknowledge in Aura's actual voice. P1: POST `t` to the puck brain, speak its streamed reply.
+        play(acks.randomElement() ?? "aura_ack1", fallback: "I'm on it.")
     }
 }
 

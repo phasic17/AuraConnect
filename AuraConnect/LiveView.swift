@@ -1,21 +1,14 @@
 import SwiftUI
 import Combine
 
-// PROJECT OMICRON — the Reveal. Floating, context-reactive glass tiles render what
-// the puck perceives. Tiles drift, brighten, and swell with real-time activity:
-// the Room tile flares when someone speaks, the Mind tile when Aura reasons.
+// PROJECT OMICRON — the Reveal. Floating, context-reactive glass tiles over the world-map
+// backdrop. The Mind (live cognition) is the hero; the room map lives in the background now.
 // Telemetry is a labelled DEMO STREAM until the puck GATT characteristic ships (P1).
 
 final class LiveTelemetry: ObservableObject {
-    struct Person: Identifiable { let id = UUID(); var name: String; var bearing: Double; var dist: Double; var activity: Double; var color: Color }
     struct Vital: Identifiable { let id = UUID(); var name: String; var frac: Double; var value: String }
     struct StreamLine: Identifiable { let id = UUID(); var kind: String; var text: String }
 
-    @Published var people: [Person] = [
-        .init(name: "Paul", bearing: -0.5, dist: 0.55, activity: 1.0, color: Color(red: 1, green: 0.69, blue: 0.28)),
-        .init(name: "guest \u{00B7} unverified", bearing: 2.1, dist: 0.80, activity: 0.30, color: Color(red: 0.6, green: 0.64, blue: 0.72)),
-        .init(name: "TV \u{00B7} ambient", bearing: -2.4, dist: 0.95, activity: 0.15, color: Color(white: 0.42))
-    ]
     @Published var stream: [StreamLine] = []
     @Published var vitals: [Vital] = [
         .init(name: "on-device models", frac: 1.00, value: "3 resident"),
@@ -24,7 +17,6 @@ final class LiveTelemetry: ObservableObject {
         .init(name: "AES link",         frac: 0.99, value: "encrypted")
     ]
     @Published var eventsProcessed: Int = 0
-    @Published var roomEnergy: Double = 0.45
     @Published var mindEnergy: Double = 0.45
     @Published var sysEnergy: Double = 0.5
     let isSimulated = true
@@ -50,17 +42,12 @@ final class LiveTelemetry: ObservableObject {
             guard let self = self else { return }
             let l = self.lines[self.idx % self.lines.count]
             self.stream.append(StreamLine(kind: l.0, text: l.1))
-            if self.stream.count > 9 { self.stream.removeFirst() }
+            if self.stream.count > 11 { self.stream.removeFirst() }
             self.idx += 1
             self.eventsProcessed += Int.random(in: 10...60)
             withAnimation(.easeOut(duration: 1.0)) {
-                self.roomEnergy *= 0.5
                 self.mindEnergy *= 0.5
-                switch l.0 {
-                case "q", "r": self.roomEnergy = 1.0
-                case "j", "m": self.mindEnergy = 1.0
-                default: break
-                }
+                if l.0 == "j" || l.0 == "m" || l.0 == "q" { self.mindEnergy = 1.0 }
                 self.sysEnergy = 0.5 + 0.12 * sin(Double(self.idx) * 0.7)
             }
         }
@@ -70,50 +57,6 @@ final class LiveTelemetry: ObservableObject {
 
 private let EMBER = Color(red: 1, green: 0.69, blue: 0.28)
 private let OKGREEN = Color(red: 0.24, green: 0.90, blue: 0.69)
-
-// MARK: - Canvas drawing (extracted so SwiftUI view bodies stay type-checkable)
-
-private func drawRadar(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, _ people: [LiveTelemetry.Person]) {
-    let cx = size.width / 2
-    let cy = size.height / 2
-    let R = min(size.width, size.height) * 0.42
-    for k in 1...4 {
-        let rr = R * Double(k) / 4.0
-        let rect = CGRect(x: cx - rr, y: cy - rr, width: rr * 2, height: rr * 2)
-        ctx.stroke(Path(ellipseIn: rect), with: .color(.white.opacity(0.08)), lineWidth: 1)
-    }
-    var wave = Path()
-    let seg = 120
-    for i in 0...seg {
-        let a = Double(i) / Double(seg) * .pi * 2
-        let amp = 1 + 0.06 * sin(a * 6 + t * 2.5) + 0.04 * sin(a * 11 - t * 3)
-        let rr = R * 0.72 * amp
-        let p = CGPoint(x: cx + cos(a) * rr, y: cy + sin(a) * rr)
-        if i == 0 { wave.move(to: p) } else { wave.addLine(to: p) }
-    }
-    wave.closeSubpath()
-    ctx.stroke(wave, with: .color(Color(red: 1, green: 0.72, blue: 0.34).opacity(0.16)), lineWidth: 1.2)
-    let sw = (t.truncatingRemainder(dividingBy: 2.6)) / 2.6 * .pi * 2
-    var wedge = Path()
-    wedge.move(to: CGPoint(x: cx, y: cy))
-    wedge.addArc(center: CGPoint(x: cx, y: cy), radius: R, startAngle: .radians(sw - 0.5), endAngle: .radians(sw), clockwise: false)
-    wedge.closeSubpath()
-    ctx.fill(wedge, with: .color(EMBER.opacity(0.08)))
-    for p in people {
-        let x = cx + cos(p.bearing) * R * p.dist
-        let y = cy + sin(p.bearing) * R * p.dist
-        let pr = 6 + p.activity * 7 + sin(t * 3) * p.activity * 2
-        var line = Path()
-        line.move(to: CGPoint(x: cx, y: cy))
-        line.addLine(to: CGPoint(x: x, y: y))
-        ctx.stroke(line, with: .color(.white.opacity(0.06)), lineWidth: 1)
-        let dotRect = CGRect(x: x - pr, y: y - pr, width: pr * 2, height: pr * 2)
-        ctx.fill(Path(ellipseIn: dotRect), with: .color(p.color.opacity(0.9)))
-        let label = Text(p.name).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.78))
-        ctx.draw(label, at: CGPoint(x: x + pr + 6, y: y), anchor: .leading)
-    }
-    ctx.fill(Path(ellipseIn: CGRect(x: cx - 5, y: cy - 5, width: 10, height: 10)), with: .color(EMBER))
-}
 
 private func drawReveal(_ ctx: GraphicsContext, _ size: CGSize, _ e: Double) {
     let a = min(e / 2.4, 1)
@@ -129,8 +72,7 @@ private func drawReveal(_ ctx: GraphicsContext, _ size: CGSize, _ e: Double) {
             ctx.draw(Text(gl).font(.system(size: 14)).foregroundStyle(col), at: CGPoint(x: Double(i) * 16 + 8, y: y))
         }
     }
-    let cx = size.width / 2
-    let cy = size.height / 2
+    let cx = size.width / 2, cy = size.height / 2
     let p = min(e / 2.2, 1)
     let segs = 64
     for i in 0..<segs {
@@ -146,8 +88,6 @@ private func drawReveal(_ ctx: GraphicsContext, _ size: CGSize, _ e: Double) {
     let core = 10 + 6 * sin(p * 8)
     ctx.fill(Path(ellipseIn: CGRect(x: cx - core, y: cy - core, width: core * 2, height: core * 2)), with: .color(EMBER))
 }
-
-// MARK: - Floating, context-reactive tile
 
 struct FloatingTile<Content: View>: View {
     var title: String
@@ -179,8 +119,6 @@ struct FloatingTile<Content: View>: View {
     }
 }
 
-// MARK: - Views
-
 struct LiveView: View {
     var assembleToken: Int = 0
     @EnvironmentObject var bt: BluetoothManager
@@ -191,15 +129,12 @@ struct LiveView: View {
     var body: some View {
         ZStack {
             dashboard
-            if revealing {
-                RevealOverlay(start: revealStart).transition(.opacity).zIndex(10)
-            }
+            if revealing { RevealOverlay(start: revealStart).transition(.opacity).zIndex(10) }
         }
         .onAppear { tel.start(); if bt.isConnected { fire() } }
         .onDisappear { tel.stop() }
         .onChange(of: bt.isConnected) { _, now in if now { fire() } }
     }
-
     private func fire() {
         revealStart = Date()
         withAnimation(.easeOut(duration: 0.4)) { revealing = true }
@@ -207,45 +142,25 @@ struct LiveView: View {
             withAnimation(.easeInOut(duration: 1.0)) { revealing = false }
         }
     }
-
     private var dashboard: some View {
         VStack(spacing: 14) {
-            HStack(spacing: 14) {
-                FloatingTile(title: "THE ROOM \u{2014} AS AURA HEARS IT", energy: tel.roomEnergy, phase: 0) {
-                    RoomRadar(people: tel.people)
-                }
-                .assemble(0, assembleToken)
-                VStack(spacing: 14) {
-                    FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 1.7) {
-                        MindStream(lines: tel.stream)
-                    }
-                    .assemble(1, assembleToken)
-                    FloatingTile(title: "ON-DEVICE SYSTEM", energy: tel.sysEnergy, phase: 3.1, accent: OKGREEN) {
-                        VitalsView(vitals: tel.vitals)
-                    }
-                    .assemble(2, assembleToken)
-                }
-                .frame(width: 320)
+            FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0) {
+                MindStream(lines: tel.stream)
             }
+            .assemble(0, 3, assembleToken)
+            FloatingTile(title: "ON-DEVICE SYSTEM", energy: tel.sysEnergy, phase: 1.6, accent: OKGREEN) {
+                VitalsView(vitals: tel.vitals)
+            }
+            .frame(height: 150)
+            .assemble(1, 3, assembleToken)
             EgressBar(events: tel.eventsProcessed)
-                .assemble(3, assembleToken)
+                .assemble(2, 3, assembleToken)
             if tel.isSimulated {
                 Text("DEMO STREAM \u{2014} live puck telemetry lands in P1")
                     .font(.brand(10)).tracking(2).foregroundStyle(EMBER.opacity(0.5))
             }
         }
         .padding(16)
-    }
-}
-
-struct RoomRadar: View {
-    var people: [LiveTelemetry.Person]
-    var body: some View {
-        TimelineView(.animation) { tl in
-            Canvas { ctx, size in
-                drawRadar(ctx, size, tl.date.timeIntervalSinceReferenceDate, people)
-            }
-        }
     }
 }
 
@@ -278,7 +193,7 @@ struct VitalsView: View {
     var vitals: [LiveTelemetry.Vital]
     var body: some View {
         VStack(spacing: 10) {
-            Spacer(minLength: 30)
+            Spacer(minLength: 24)
             ForEach(vitals) { v in
                 HStack(spacing: 10) {
                     Text(v.name).font(.system(size: 12)).foregroundStyle(.white.opacity(0.8)).frame(width: 118, alignment: .leading)
@@ -332,11 +247,9 @@ struct RevealOverlay: View {
     var body: some View {
         TimelineView(.animation) { tl in
             let e = tl.date.timeIntervalSince(start)
-            Canvas { ctx, size in
-                drawReveal(ctx, size, e)
-            }
-            .background(Color(red: 0.02, green: 0.016, blue: 0.04))
-            .overlay(alignment: .bottom) { caption(e) }
+            Canvas { ctx, size in drawReveal(ctx, size, e) }
+                .background(Color(red: 0.02, green: 0.016, blue: 0.04))
+                .overlay(alignment: .bottom) { caption(e) }
         }
         .ignoresSafeArea()
     }

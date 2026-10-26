@@ -58,32 +58,66 @@ struct GlassTile: ViewModifier {
 }
 extension View { func glass(_ a: Color = Aura.ember) -> some View { modifier(GlassTile(accent: a)) } }
 
-// Unlock "assemble" choreography: each tile fades in at a slightly random, overlapping
-// offset (staggered), then springs into its ordered grid slot.
+
+// Unlock choreography: each tile PIXELATES in (block-dissolve), one at a time and slow,
+// at a random overlapping offset; once the last has materialized, they order into the grid.
+struct PixelMask: View {
+    var start: Date?
+    private func cellHash(_ c: Int, _ r: Int) -> Double {
+        let v = sin(Double(c) * 12.9898 + Double(r) * 78.233) * 43758.5453
+        return v - v.rounded(.down)
+    }
+    var body: some View {
+        TimelineView(.animation) { tl in
+            Canvas { ctx, size in
+                guard let s = start else { return }
+                let p = min(max(tl.date.timeIntervalSince(s) / 1.6, 0), 1)
+                if p >= 1 { return }
+                let cell = 15.0
+                let cols = Int(ceil(size.width / cell))
+                let rows = Int(ceil(size.height / cell))
+                for r in 0..<rows {
+                    for c in 0..<cols {
+                        let h = cellHash(c, r)
+                        if h > p {
+                            let aedge = min((h - p) / 0.09, 1)
+                            ctx.fill(Path(CGRect(x: Double(c) * cell, y: Double(r) * cell, width: cell + 0.7, height: cell + 0.7)),
+                                     with: .color(Color(red: 0.02, green: 0.016, blue: 0.03).opacity(0.96 * aedge)))
+                        }
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+}
+
 struct AssembleEffect: ViewModifier {
     var index: Int
+    var count: Int
     var token: Int
-    @State private var faded = false
+    @State private var started: Date? = nil
     @State private var ordered = false
     @State private var scatter: CGSize = .zero
     func body(content: Content) -> some View {
         content
-            .opacity(faded ? 1 : 0)
-            .scaleEffect(ordered ? 1 : 0.94)
+            .overlay(PixelMask(start: started))
+            .opacity(started == nil ? 0 : 1)
             .offset(ordered ? .zero : scatter)
             .onAppear { run() }
             .onChange(of: token) { _, _ in run() }
     }
     private func run() {
-        let a = Double(index) * 2.399963                 // golden-angle spread of directions
-        let mag = 28.0 + Double((index * 53) % 42)        // 28..70 px, varied
-        scatter = CGSize(width: cos(a) * mag, height: sin(a) * mag - 6)
-        faded = false; ordered = false
-        withAnimation(.easeOut(duration: 1.1).delay(Double(index) * 0.3)) { faded = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
-            withAnimation(.spring(response: 1.05, dampingFraction: 0.85).delay(Double(index) * 0.2)) { ordered = true }
+        let dur = 1.7
+        let a = Double(index) * 2.399963
+        let mag = 55.0 + Double((index * 53) % 70)
+        scatter = CGSize(width: cos(a) * mag, height: sin(a) * mag - 10)
+        started = nil; ordered = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * dur) { started = Date() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(count) * dur + 0.6) {
+            withAnimation(.spring(response: 1.15, dampingFraction: 0.86)) { ordered = true }
         }
     }
 }
-extension View { func assemble(_ index: Int, _ token: Int) -> some View { modifier(AssembleEffect(index: index, token: token)) } }
-
+extension View { func assemble(_ index: Int, _ count: Int, _ token: Int) -> some View { modifier(AssembleEffect(index: index, count: count, token: token)) } }
