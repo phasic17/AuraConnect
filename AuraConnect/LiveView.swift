@@ -57,6 +57,40 @@ final class LiveTelemetry: ObservableObject {
 
 private let EMBER = Color(red: 1, green: 0.69, blue: 0.28)
 private let OKGREEN = Color(red: 0.24, green: 0.90, blue: 0.69)
+private let CY = Color(red: 0.35, green: 0.82, blue: 1.0)
+private let GN = Color(red: 0.30, green: 0.92, blue: 0.60)
+private let MG = Color(red: 1.0, green: 0.38, blue: 0.72)
+private let VI = Color(red: 0.62, green: 0.48, blue: 1.0)
+private let OR = Color(red: 1.0, green: 0.52, blue: 0.22)
+
+struct ActionTile: View {
+    var t: String; var accent: Color; var big: String; var sub: String; var ph: Double
+    var body: some View {
+        TimelineView(.animation) { tl in
+            let tt = tl.date.timeIntervalSinceReferenceDate
+            let dy = sin(tt * 0.5 + ph) * 3
+            let dx = cos(tt * 0.4 + ph) * 2
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text(t).font(.brand(10)).tracking(2).foregroundStyle(accent)
+                    Spacer()
+                    Circle().fill(accent).frame(width: 6, height: 6).shadow(color: accent, radius: 4)
+                }
+                Spacer(minLength: 8)
+                Text(big).font(.brand(24)).foregroundStyle(.white)
+                Text(sub).font(.system(size: 11)).foregroundStyle(.white.opacity(0.62))
+            }
+            .padding(15).frame(maxWidth: .infinity, minHeight: 116, alignment: .topLeading)
+            .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.28))
+            .background(accent.opacity(0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.55), lineWidth: 1))
+            .overlay(CornerTicks(accent: accent))
+            .shadow(color: accent.opacity(0.22), radius: 12)
+            .offset(x: dx, y: dy)
+        }
+    }
+}
 
 private func drawReveal(_ ctx: GraphicsContext, _ size: CGSize, _ e: Double) {
     let a = min(e / 2.4, 1)
@@ -151,23 +185,24 @@ struct LiveView: View {
             withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
         }
     }
+    private let COL = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
     private var dashboard: some View {
         VStack(spacing: 14) {
             FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
                 MindStream(lines: tel.stream)
             }
-            .assemble(0, 3, -250, 150, assembleToken)
-            FloatingTile(title: "ON-DEVICE SYSTEM", energy: tel.sysEnergy, phase: 1.6, accent: OKGREEN, hardened: hardened) {
-                VitalsView(vitals: tel.vitals)
+            .frame(height: 190)
+            .assemble(0, 8, -260, 170, assembleToken)
+            LazyVGrid(columns: COL, spacing: 14) {
+                ActionTile(t: "SIGNALS", accent: CY, big: "3 NEW", sub: "2 flagged for you", ph: 0.4).assemble(1, 8, 250, -120, assembleToken)
+                ActionTile(t: "PUCK FLEET", accent: GN, big: "4 / 4", sub: "all online \u{00B7} healthy", ph: 1.0).assemble(2, 8, -230, -160, assembleToken)
+                ActionTile(t: "APPROVALS", accent: MG, big: "2 PENDING", sub: "ship-gate review", ph: 1.6).assemble(3, 8, 240, 160, assembleToken)
+                ActionTile(t: "MODEL WATCH", accent: VI, big: "GLM-AIR", sub: "240ms \u{00B7} 3 resident", ph: 2.2).assemble(4, 8, -200, 120, assembleToken)
+                ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: "71\u{00B0}C", sub: "7.6 / 16 GB \u{00B7} AES on", ph: 2.8).assemble(5, 8, 210, -60, assembleToken)
+                ActionTile(t: "TODAY", accent: OR, big: "5 ITEMS", sub: "2 due today", ph: 3.4).assemble(6, 8, -150, -200, assembleToken)
             }
-            .frame(height: 150)
-            .assemble(1, 3, 270, -80, assembleToken)
             EgressBar(events: tel.eventsProcessed)
-                .assemble(2, 3, -140, -210, assembleToken)
-            if tel.isSimulated {
-                Text("DEMO STREAM \u{2014} live puck telemetry lands in P1")
-                    .font(.brand(10)).tracking(2).foregroundStyle(EMBER.opacity(0.5))
-            }
+                .assemble(7, 8, 160, 190, assembleToken)
         }
         .padding(16)
     }
