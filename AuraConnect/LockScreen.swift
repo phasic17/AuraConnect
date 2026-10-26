@@ -15,7 +15,7 @@ private func drawLock(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
     let pr = 54.0 + 6 * sin(t * 0.7)
     ctx.stroke(Path(ellipseIn: CGRect(x: cx - pr, y: cy - pr, width: pr * 2, height: pr * 2)),
                with: .color(Aura.danger.opacity(0.45)), lineWidth: 2)
-    let sw = (t / 22.0 - (t / 22.0).rounded(.down)) * Double.pi * 2
+    let sw = (t / 15.0 - (t / 15.0).rounded(.down)) * Double.pi * 2
     var wedge = Path()
     wedge.move(to: CGPoint(x: cx, y: cy))
     wedge.addArc(center: CGPoint(x: cx, y: cy), radius: 300, startAngle: .radians(sw - 0.22), endAngle: .radians(sw), clockwise: false)

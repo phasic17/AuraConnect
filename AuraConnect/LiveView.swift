@@ -147,7 +147,7 @@ struct LiveView: View {
     }
     private func scheduleHarden() {
         hardened = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 20.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 13.5) {
             withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
         }
     }
@@ -156,14 +156,14 @@ struct LiveView: View {
             FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
                 MindStream(lines: tel.stream)
             }
-            .assemble(0, 3, 0, 185, assembleToken)
+            .assemble(0, 3, -250, 150, assembleToken)
             FloatingTile(title: "ON-DEVICE SYSTEM", energy: tel.sysEnergy, phase: 1.6, accent: OKGREEN, hardened: hardened) {
                 VitalsView(vitals: tel.vitals)
             }
             .frame(height: 150)
-            .assemble(1, 3, 0, 15, assembleToken)
+            .assemble(1, 3, 270, -80, assembleToken)
             EgressBar(events: tel.eventsProcessed)
-                .assemble(2, 3, 0, -195, assembleToken)
+                .assemble(2, 3, -140, -210, assembleToken)
             if tel.isSimulated {
                 Text("DEMO STREAM \u{2014} live puck telemetry lands in P1")
                     .font(.brand(10)).tracking(2).foregroundStyle(EMBER.opacity(0.5))

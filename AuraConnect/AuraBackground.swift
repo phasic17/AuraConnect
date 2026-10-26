@@ -176,7 +176,7 @@ private func drawWorldMap(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
     let cols = Double(WorldMap.cols), rows = Double(WorldMap.nrows)
     let mapH = H * 0.9, offY = H * 0.05
     let stepX = W / cols, stepY = mapH / rows
-    let period = 50.0
+    let period = 32.0
     let sweepX = (t / period - (t / period).rounded(.down)) * W
     let g = WorldMap.grid
     for r in 0..<WorldMap.nrows {
@@ -187,19 +187,20 @@ private func drawWorldMap(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
             let y = offY + Double(r) * stepY + stepY / 2
             let baseHue = 0.04 + 0.5 * (Double(c) / cols)
             var d = abs(x - sweepX); if d > W / 2 { d = W - d }
-            let near = max(0, 1 - d / (W * 0.12))
+            let near = max(0, 1 - d / (W * 0.10))
             let hue = baseHue + (0.085 - baseHue) * (near * 0.9)
-            let bright = 0.6 + 0.35 * near
+            let bright = 0.58 + 0.5 * near
             let sat = 0.72 + 0.22 * near
             let sz = 1.3 + 1.2 * near
             ctx.fill(Path(ellipseIn: CGRect(x: x - sz / 2, y: y - sz / 2, width: sz, height: sz)),
-                     with: .color(Color(hue: hue, saturation: sat, brightness: bright, opacity: 0.78 + 0.22 * near)))
+                     with: .color(Color(hue: hue, saturation: sat, brightness: bright, opacity: 0.74 + 0.26 * near)))
         }
     }
     let bar = GraphicsContext.Shading.linearGradient(
-        Gradient(colors: [.clear, Color(red: 1, green: 0.69, blue: 0.28).opacity(0.14), .clear]),
-        startPoint: CGPoint(x: sweepX - 90, y: 0), endPoint: CGPoint(x: sweepX + 90, y: 0))
-    ctx.fill(Path(CGRect(x: sweepX - 90, y: offY, width: 180, height: mapH)), with: bar)
+        Gradient(colors: [.clear, Color(red: 1, green: 0.69, blue: 0.28).opacity(0.30), .clear]),
+        startPoint: CGPoint(x: sweepX - 120, y: 0), endPoint: CGPoint(x: sweepX + 120, y: 0))
+    ctx.fill(Path(CGRect(x: sweepX - 120, y: offY, width: 240, height: mapH)), with: bar)
+    ctx.fill(Path(CGRect(x: sweepX - 1.3, y: offY, width: 2.6, height: mapH)), with: .color(Color(red: 1, green: 0.82, blue: 0.42).opacity(0.5)))
     let cities: [(Double, Double)] = [(40.7, -74), (51.5, -0.1), (35.7, 139.7), (-33.9, 151.2), (37.8, -122.4), (25.2, 55.3), (-23.5, -46.6), (1.3, 103.8)]
     for (i, ct) in cities.enumerated() {
         let x = (ct.1 + 180) / 360 * W
