@@ -56,6 +56,7 @@ struct ContentView: View {
             if !showStartup {
                 VStack {
                     HStack(spacing: 10) {
+                        WorldClocks()
                         Spacer()
                         ListeningPill(voice: voice)
                         LockButton { withAnimation { voice.lock() } }

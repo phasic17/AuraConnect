@@ -107,28 +107,33 @@ private func drawTileChart(_ ctx: GraphicsContext, _ size: CGSize, _ kind: Strin
 }
 
 struct ActionTile: View {
-    var t: String; var accent: Color; var big: String; var kind: String; var h: CGFloat; var ph: Double
+    var t: String; var accent: Color; var big: String; var sub: String; var kind: String; var h: CGFloat; var ph: Double
+    @State private var hovering = false
     var body: some View {
         TimelineView(.animation) { tl in
             let tt = tl.date.timeIntervalSinceReferenceDate
-            let dy = sin(tt * 0.5 + ph) * 2.5
-            VStack(alignment: .leading, spacing: 8) {
+            let dy = sin(tt * 0.5 + ph) * 1.3
+            let throb = hovering ? (0.45 + 0.45 * (0.5 + 0.5 * sin(tt * 4))) : 0.5
+            VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(t).font(.brand(9)).tracking(1.8).foregroundStyle(accent)
                     Spacer()
-                    Text(big).font(.brand(15)).foregroundStyle(.white)
+                    Circle().fill(accent).frame(width: 6, height: 6).shadow(color: accent, radius: 4)
                 }
+                Text(big).font(.brand(17)).foregroundStyle(.white)
+                Text(sub).font(.system(size: 10)).foregroundStyle(.white.opacity(0.6)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 Canvas { ctx, size in drawTileChart(ctx, size, kind, tt, accent) }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .padding(13).frame(maxWidth: .infinity).frame(height: h)
             .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.3))
-            .background(accent.opacity(0.07))
+            .background(accent.opacity(hovering ? 0.12 : 0.07))
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.55), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(throb), lineWidth: hovering ? 1.7 : 1))
             .overlay(CornerTicks(accent: accent))
-            .shadow(color: accent.opacity(0.22), radius: 12)
+            .shadow(color: accent.opacity(hovering ? 0.35 : 0.22), radius: hovering ? 16 : 12)
             .offset(y: dy)
+            .onHover { hovering = $0 }
         }
     }
 }
@@ -139,25 +144,20 @@ struct ClockCell: View {
     var now: Date
     var body: some View {
         let f = DateFormatter(); f.timeZone = TimeZone(identifier: tz); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "HH:mm:ss"
-        return VStack(spacing: 3) {
-            Text(city).font(.brand(8)).tracking(1.6).foregroundStyle(Color(red: 1, green: 0.69, blue: 0.28).opacity(0.78))
-            Text(f.string(from: now)).font(.system(size: 15, weight: .semibold, design: .monospaced)).foregroundStyle(.white.opacity(0.92))
+        return VStack(spacing: 1) {
+            Text(city).font(.brand(7)).tracking(1.1).foregroundStyle(Color(red: 1, green: 0.69, blue: 0.28).opacity(0.72))
+            Text(f.string(from: now)).font(.system(size: 12, weight: .semibold, design: .monospaced)).foregroundStyle(.white.opacity(0.9))
         }
-        .padding(.vertical, 8).frame(maxWidth: .infinity)
-        .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.3))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(red: 0.35, green: 0.82, blue: 1.0).opacity(0.25), lineWidth: 1))
+        .frame(width: 72)
     }
 }
 
 struct WorldClocks: View {
-    private let zones: [(String, String)] = [("SAN FRANCISCO", "America/Los_Angeles"), ("NEW YORK", "America/New_York"), ("LONDON", "Europe/London"), ("DUBAI", "Asia/Dubai"), ("SINGAPORE", "Asia/Singapore"), ("TOKYO", "Asia/Tokyo")]
+    private let zones: [(String, String)] = [("SF", "America/Los_Angeles"), ("NEW YORK", "America/New_York"), ("LONDON", "Europe/London"), ("DUBAI", "Asia/Dubai"), ("TOKYO", "Asia/Tokyo")]
     var body: some View {
         TimelineView(.periodic(from: Date(), by: 1)) { ctx in
-            HStack(spacing: 10) {
-                ForEach(zones, id: \.0) { z in
-                    ClockCell(city: z.0, tz: z.1, now: ctx.date)
-                }
+            HStack(spacing: 12) {
+                ForEach(zones, id: \.0) { z in ClockCell(city: z.0, tz: z.1, now: ctx.date) }
             }
         }
     }
@@ -204,8 +204,8 @@ struct FloatingTile<Content: View>: View {
     var body: some View {
         TimelineView(.animation) { tl in
             let t = tl.date.timeIntervalSinceReferenceDate
-            let dy = sin(t * 0.55 + phase) * 4
-            let dx = cos(t * 0.4 + phase) * 3
+            let dy = sin(t * 0.55 + phase) * 1.4
+            let dx = cos(t * 0.4 + phase) * 1.1
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .topLeading) {
@@ -235,10 +235,7 @@ struct LiveView: View {
 
     var body: some View {
         ZStack {
-            VStack(spacing: 0) {
-                WorldClocks().padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 2)
-                ScrollView { dashboard }
-            }
+            ScrollView { dashboard }
             if revealing { RevealOverlay(start: revealStart).transition(.opacity).zIndex(10) }
         }
         .onAppear { tel.start(); scheduleHarden(); if bt.isConnected { fire() } }
@@ -260,31 +257,28 @@ struct LiveView: View {
         }
     }
     private var dashboard: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
                 MindStream(lines: tel.stream)
             }
             .frame(height: 150)
-            .assemble(0, 11, assembleToken)
-            HStack(alignment: .top, spacing: 14) {
-                VStack(spacing: 14) {
-                    ActionTile(t: "SIGNALS", accent: CY, big: "3", kind: "spark", h: 162, ph: 0.3).assemble(1, 11, assembleToken)
-                    ActionTile(t: "APPROVALS", accent: MG, big: "2", kind: "ring", h: 128, ph: 0.9).assemble(2, 11, assembleToken)
-                    ActionTile(t: "THERMAL", accent: OR, big: "71\u{00B0}", kind: "spark", h: 184, ph: 1.5).assemble(3, 11, assembleToken)
+            .assemble(0, 8, assembleToken)
+            HStack(alignment: .top, spacing: 16) {
+                VStack(spacing: 16) {
+                    ActionTile(t: "SIGNALS", accent: CY, big: "3 NEW", sub: "2 flagged for you \u{00B7} Decoder replied", kind: "spark", h: 146, ph: 0.3).assemble(1, 8, assembleToken)
+                    ActionTile(t: "MODEL WATCH", accent: VI, big: "GLM-AIR \u{00B7} 240ms", sub: "3 resident \u{00B7} p95 310ms \u{00B7} 0 errors", kind: "spark", h: 246, ph: 0.9).assemble(2, 8, assembleToken)
                 }
-                VStack(spacing: 14) {
-                    ActionTile(t: "PUCK FLEET", accent: GN, big: "4/4", kind: "dots", h: 120, ph: 2.1).assemble(4, 11, assembleToken)
-                    ActionTile(t: "MODEL", accent: VI, big: "240ms", kind: "spark", h: 178, ph: 2.7).assemble(5, 11, assembleToken)
-                    ActionTile(t: "NETWORK", accent: CY, big: "0kb", kind: "bars", h: 138, ph: 3.3).assemble(6, 11, assembleToken)
+                VStack(spacing: 16) {
+                    ActionTile(t: "PUCK FLEET", accent: GN, big: "4 / 4 ONLINE", sub: "onyx-7f3a 71\u{00B0} \u{00B7} pearl-2b1c 68\u{00B0} \u{00B7} healthy", kind: "dots", h: 228, ph: 1.5).assemble(3, 8, assembleToken)
+                    ActionTile(t: "APPROVALS", accent: MG, big: "2 PENDING", sub: "ship-gate review \u{00B7} your call", kind: "ring", h: 116, ph: 2.1).assemble(4, 8, assembleToken)
                 }
-                VStack(spacing: 14) {
-                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: "3", kind: "bars", h: 168, ph: 3.9).assemble(7, 11, assembleToken)
-                    ActionTile(t: "TODAY", accent: OR, big: "5", kind: "ring", h: 132, ph: 4.5).assemble(8, 11, assembleToken)
-                    ActionTile(t: "UPTIME", accent: GN, big: "99.9%", kind: "ring", h: 152, ph: 5.1).assemble(9, 11, assembleToken)
+                VStack(spacing: 16) {
+                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: "71\u{00B0}C \u{00B7} 7.6/16GB", sub: "AES link \u{00B7} 3 models resident \u{00B7} 0 egress", kind: "bars", h: 204, ph: 2.7).assemble(5, 8, assembleToken)
+                    ActionTile(t: "TODAY", accent: OR, big: "5 \u{00B7} 2 DUE", sub: "PAIR send \u{00B7} reveal recut", kind: "ring", h: 150, ph: 3.3).assemble(6, 8, assembleToken)
                 }
             }
             EgressBar(events: tel.eventsProcessed)
-                .assemble(10, 11, assembleToken)
+                .assemble(7, 8, assembleToken)
         }
         .padding(16)
     }
