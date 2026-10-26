@@ -61,13 +61,12 @@ extension View { func glass(_ a: Color = Aura.ember) -> some View { modifier(Gla
 
 private func thashT(_ i: Int, _ s: Double) -> Double { let v = sin(Double(i) * s) * 43758.5453; return v - v.rounded(.down) }
 
+// Matrix-style pixelate: amber-dark blocks dissolve away top-to-bottom per column (falling code).
 struct PixelMask: View {
     var start: Date?
-    var dur: Double = 2.6
-    private func cellHash(_ c: Int, _ r: Int) -> Double {
-        let v = sin(Double(c) * 12.9898 + Double(r) * 78.233) * 43758.5453
-        return v - v.rounded(.down)
-    }
+    var dur: Double = 3.3
+    private func colHash(_ c: Int) -> Double { let v = sin(Double(c) * 91.7) * 43758.5453; return v - v.rounded(.down) }
+    private func cellHash(_ c: Int, _ r: Int) -> Double { let v = sin(Double(c) * 12.9898 + Double(r) * 78.233) * 43758.5453; return v - v.rounded(.down) }
     var body: some View {
         TimelineView(.animation) { tl in
             Canvas { ctx, size in
@@ -76,13 +75,14 @@ struct PixelMask: View {
                 if p >= 1 { return }
                 let cell = 15.0
                 let cols = Int(ceil(size.width / cell)), rows = Int(ceil(size.height / cell))
-                for r in 0..<rows {
-                    for c in 0..<cols {
-                        let h = cellHash(c, r)
-                        if h > p {
-                            let aedge = min((h - p) / 0.08, 1)
+                for c in 0..<cols {
+                    let off = colHash(c) * 0.28
+                    for r in 0..<rows {
+                        let thr = (Double(r) / Double(rows)) * 0.6 + off + cellHash(c, r) * 0.08
+                        if thr > p {
+                            let aedge = min((thr - p) / 0.05, 1)
                             ctx.fill(Path(CGRect(x: Double(c) * cell, y: Double(r) * cell, width: cell + 0.7, height: cell + 0.7)),
-                                     with: .color(Color(red: 0.03, green: 0.025, blue: 0.045).opacity(0.97 * aedge)))
+                                     with: .color(Color(red: 0.05, green: 0.035, blue: 0.015).opacity(0.97 * aedge)))
                         }
                     }
                 }
@@ -93,14 +93,14 @@ struct PixelMask: View {
     }
 }
 
-// Each tile is hidden until its turn, then PIXELATES in (slow) at a central, overlapping
-// offset; once the last tile has materialized they all spring out to their grid slots.
+// Each tile hidden until its turn, then pixelates in (slow) at a central overlapping offset;
+// after the last materializes they spring to their grid slots.
 struct AssembleEffect: ViewModifier {
     var index: Int
     var count: Int
     var pull: CGSize
     var token: Int
-    private let dur = 2.6
+    private let dur = 3.3
     @State private var started: Date? = nil
     @State private var ordered = false
     @State private var jitter: CGSize = .zero
@@ -118,7 +118,7 @@ struct AssembleEffect: ViewModifier {
         started = nil; ordered = false
         DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * dur) { started = Date() }
         DispatchQueue.main.asyncAfter(deadline: .now() + Double(count) * dur + 0.5) {
-            withAnimation(.spring(response: 1.2, dampingFraction: 0.86)) { ordered = true }
+            withAnimation(.spring(response: 1.3, dampingFraction: 0.86)) { ordered = true }
         }
     }
 }

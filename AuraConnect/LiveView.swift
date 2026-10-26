@@ -94,6 +94,7 @@ struct FloatingTile<Content: View>: View {
     var energy: Double
     var phase: Double
     var accent: Color = EMBER
+    var hardened: Bool = true
     @ViewBuilder var content: () -> Content
     var body: some View {
         TimelineView(.animation) { tl in
@@ -112,7 +113,7 @@ struct FloatingTile<Content: View>: View {
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.18 + 0.42 * energy), lineWidth: 1))
                 .overlay(CornerTicks(accent: accent))
                 .shadow(color: accent.opacity(0.12 + 0.24 * energy), radius: 13 + 11 * energy)
-                .opacity(0.72 + 0.28 * energy)
+                .opacity(hardened ? (0.55 + 0.30 * energy) : (0.24 + 0.12 * energy))
                 .scaleEffect(1 + 0.012 * energy)
                 .offset(x: dx, y: dy)
         }
@@ -125,15 +126,17 @@ struct LiveView: View {
     @StateObject private var tel = LiveTelemetry()
     @State private var revealing = false
     @State private var revealStart = Date()
+    @State private var hardened = false
 
     var body: some View {
         ZStack {
             dashboard
             if revealing { RevealOverlay(start: revealStart).transition(.opacity).zIndex(10) }
         }
-        .onAppear { tel.start(); if bt.isConnected { fire() } }
+        .onAppear { tel.start(); scheduleHarden(); if bt.isConnected { fire() } }
         .onDisappear { tel.stop() }
         .onChange(of: bt.isConnected) { _, now in if now { fire() } }
+        .onChange(of: assembleToken) { _, _ in scheduleHarden() }
     }
     private func fire() {
         revealStart = Date()
@@ -142,13 +145,19 @@ struct LiveView: View {
             withAnimation(.easeInOut(duration: 1.0)) { revealing = false }
         }
     }
+    private func scheduleHarden() {
+        hardened = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 11.5) {
+            withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
+        }
+    }
     private var dashboard: some View {
         VStack(spacing: 14) {
-            FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0) {
+            FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
                 MindStream(lines: tel.stream)
             }
             .assemble(0, 3, 0, 185, assembleToken)
-            FloatingTile(title: "ON-DEVICE SYSTEM", energy: tel.sysEnergy, phase: 1.6, accent: OKGREEN) {
+            FloatingTile(title: "ON-DEVICE SYSTEM", energy: tel.sysEnergy, phase: 1.6, accent: OKGREEN, hardened: hardened) {
                 VitalsView(vitals: tel.vitals)
             }
             .frame(height: 150)
