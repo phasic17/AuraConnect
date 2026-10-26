@@ -65,43 +65,81 @@ private let OR = Color(red: 1.0, green: 0.52, blue: 0.22)
 
 private func drawTileChart(_ ctx: GraphicsContext, _ size: CGSize, _ kind: String, _ t: Double, _ ac: Color) {
     let W = size.width, H = size.height
+    // faint reference grid under every chart — adds density
+    var grid = Path()
+    for gi in 1...3 { let gy = H * CGFloat(gi) / 4; grid.move(to: CGPoint(x: 0, y: gy)); grid.addLine(to: CGPoint(x: W, y: gy)) }
+    for gi in 1...5 { let gx = W * CGFloat(gi) / 6; grid.move(to: CGPoint(x: gx, y: 0)); grid.addLine(to: CGPoint(x: gx, y: H)) }
+    ctx.stroke(grid, with: .color(ac.opacity(0.10)), lineWidth: 0.5)
     if kind == "spark" {
-        var line = Path(); var area = Path()
-        let n = 26
+        // ghost secondary series (adds depth)
+        var ghost = Path()
+        let gn = 46
+        for i in 0...gn {
+            let x = W * CGFloat(i) / CGFloat(gn)
+            let v = 0.5 + 0.22 * sin(Double(i) * 0.38 - t * 0.5) + 0.10 * sin(Double(i) * 0.9 - t * 0.8)
+            let y = H * (1 - CGFloat(max(0.05, min(0.95, v))))
+            let pt = CGPoint(x: x, y: y)
+            if i == 0 { ghost.move(to: pt) } else { ghost.addLine(to: pt) }
+        }
+        ctx.stroke(ghost, with: .color(ac.opacity(0.32)), style: StrokeStyle(lineWidth: 1.0, dash: [3, 3]))
+        var line = Path(); var area = Path(); var endPt = CGPoint(x: 0, y: H)
+        let n = 46
         for i in 0...n {
             let x = W * CGFloat(i) / CGFloat(n)
             let v = 0.5 + 0.34 * sin(Double(i) * 0.5 + t * 0.6) + 0.12 * sin(Double(i) * 1.3 + t)
             let y = H * (1 - CGFloat(max(0.05, min(0.95, v))))
-            let pt = CGPoint(x: x, y: y)
+            let pt = CGPoint(x: x, y: y); endPt = pt
             if i == 0 { line.move(to: pt); area.move(to: CGPoint(x: x, y: H)); area.addLine(to: pt) }
             else { line.addLine(to: pt); area.addLine(to: pt) }
         }
         area.addLine(to: CGPoint(x: W, y: H)); area.closeSubpath()
-        ctx.fill(area, with: .linearGradient(Gradient(colors: [ac.opacity(0.28), .clear]), startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 0, y: H)))
+        ctx.fill(area, with: .linearGradient(Gradient(colors: [ac.opacity(0.30), .clear]), startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 0, y: H)))
         ctx.stroke(line, with: .color(ac), style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+        ctx.stroke(Path(ellipseIn: CGRect(x: endPt.x - 5.5, y: endPt.y - 5.5, width: 11, height: 11)), with: .color(ac.opacity(0.5)), lineWidth: 1)
+        ctx.fill(Path(ellipseIn: CGRect(x: endPt.x - 3, y: endPt.y - 3, width: 6, height: 6)), with: .color(ac))
     } else if kind == "bars" {
-        let vals: [CGFloat] = [0.5, 0.82, 0.4, 0.95, 0.62, 0.74]
-        let bw = W / CGFloat(vals.count) * 0.55
+        let vals: [CGFloat] = [0.5, 0.82, 0.4, 0.95, 0.62, 0.74, 0.58, 0.88, 0.46, 0.7, 0.6, 0.9]
+        let bw = W / CGFloat(vals.count) * 0.62
         let gap = W / CGFloat(vals.count)
         for (i, v) in vals.enumerated() {
             let vv = v * (0.82 + 0.18 * CGFloat(sin(t * 1.4 + Double(i))))
             let x = CGFloat(i) * gap + (gap - bw) / 2
             let bh = H * vv
             ctx.fill(Path(roundedRect: CGRect(x: x, y: H - bh, width: bw, height: bh), cornerRadius: 2),
-                     with: .color(ac.opacity(0.4 + 0.5 * Double(v))))
+                     with: .color(ac.opacity(0.32 + 0.5 * Double(v))))
+            ctx.fill(Path(CGRect(x: x, y: H - bh - 1.5, width: bw, height: 1.5)), with: .color(ac))
         }
+        ctx.stroke(Path { p in p.move(to: CGPoint(x: 0, y: H - 0.5)); p.addLine(to: CGPoint(x: W, y: H - 0.5)) },
+                   with: .color(ac.opacity(0.35)), lineWidth: 1)
     } else if kind == "ring" {
         let cx = W / 2, cy = H / 2, r = min(W, H) * 0.40
+        for tk in 0..<36 {
+            let a = Double(tk) * 10 * .pi / 180
+            let r0 = r + 7, r1 = r + (tk % 3 == 0 ? 12 : 9)
+            ctx.stroke(Path { p in p.move(to: CGPoint(x: cx + cos(a) * r0, y: cy + sin(a) * r0)); p.addLine(to: CGPoint(x: cx + cos(a) * r1, y: cy + sin(a) * r1)) },
+                       with: .color(ac.opacity(tk % 3 == 0 ? 0.5 : 0.22)), lineWidth: 1)
+        }
         ctx.stroke(Path(ellipseIn: CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)), with: .color(ac.opacity(0.18)), lineWidth: 6)
+        let frac = 0.42 + 0.06 * sin(t * 0.8)
         var arc = Path()
-        arc.addArc(center: CGPoint(x: cx, y: cy), radius: r, startAngle: .degrees(-90), endAngle: .degrees(-90 + 360 * 0.42), clockwise: false)
+        arc.addArc(center: CGPoint(x: cx, y: cy), radius: r, startAngle: .degrees(-90), endAngle: .degrees(-90 + 360 * frac), clockwise: false)
         ctx.stroke(arc, with: .color(ac), style: StrokeStyle(lineWidth: 6, lineCap: .round))
+        var arc2 = Path()
+        arc2.addArc(center: CGPoint(x: cx, y: cy), radius: r - 9, startAngle: .degrees(-90), endAngle: .degrees(-90 - 360 * 0.6 * frac), clockwise: true)
+        ctx.stroke(arc2, with: .color(ac.opacity(0.45)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+        ctx.fill(Path(ellipseIn: CGRect(x: cx - 2.5, y: cy - 2.5, width: 5, height: 5)), with: .color(ac))
     } else if kind == "dots" {
-        let n = 4, gap = W / CGFloat(n + 1)
-        for i in 0..<n {
-            let x = gap * CGFloat(i + 1)
-            let pulse = 0.55 + 0.45 * sin(t * 2 + Double(i) * 0.9)
-            ctx.fill(Path(ellipseIn: CGRect(x: x - 7, y: H / 2 - 7, width: 14, height: 14)), with: .color(ac.opacity(0.4 + 0.5 * pulse)))
+        let cols = 10, rows = 3
+        let gx = W / CGFloat(cols + 1), gy = H / CGFloat(rows + 1)
+        for r in 0..<rows {
+            for i in 0..<cols {
+                let x = gx * CGFloat(i + 1), y = gy * CGFloat(r + 1)
+                let pulse = 0.5 + 0.5 * sin(t * 2 + Double(i) * 0.5 + Double(r) * 1.1)
+                let on = ((i + r) % 4 != 0)
+                let rad: CGFloat = 4
+                ctx.fill(Path(ellipseIn: CGRect(x: x - rad, y: y - rad, width: rad * 2, height: rad * 2)),
+                         with: .color(ac.opacity(on ? (0.3 + 0.55 * pulse) : 0.12)))
+            }
         }
     }
 }

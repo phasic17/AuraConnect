@@ -71,7 +71,9 @@ struct ContentView: View {
             if showVault {
                 DisconnectVault(onClosed: {
                     bt.disconnect()
+                    bt.startScan()                      // re-detect the puck for the welcome screen
                     withAnimation(.easeInOut(duration: 0.8)) { showVault = false }
+                    withAnimation(.easeInOut(duration: 0.6)) { showStartup = true }   // sever → back to welcome/auth
                 })
                 .zIndex(200)
             }

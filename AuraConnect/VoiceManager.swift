@@ -108,6 +108,8 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
         guard !locked, !speaking, engineStarted, request == nil else { return }
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
+        // Privacy: force on-device recognition so audio NEVER leaves the Mac (no Apple cloud).
+        if recognizer?.supportsOnDeviceRecognition == true { req.requiresOnDeviceRecognition = true }
         request = req
         listening = true; transcript = ""
         task = recognizer?.recognitionTask(with: req) { res, err in
