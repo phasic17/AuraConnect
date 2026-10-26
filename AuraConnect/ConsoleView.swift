@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct ConsoleLine: Identifiable { let id = UUID(); var text: String; var kind: String }
 

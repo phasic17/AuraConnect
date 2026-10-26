@@ -1,9 +1,10 @@
 import SwiftUI
+import Foundation
 
 private func drawVault(_ ctx: GraphicsContext, _ size: CGSize, _ p: Double, _ t: Double) {
-    let cx = size.width / 2
-    let cy = size.height / 2
-    let R = min(size.width, size.height) * 0.34
+    let cx = Double(size.width) / 2
+    let cy = Double(size.height) / 2
+    let R = Double(min(size.width, size.height)) * 0.34
     let blades = 8
     for b in 0..<blades {
         let a = Double(b) / Double(blades) * 2 * .pi
