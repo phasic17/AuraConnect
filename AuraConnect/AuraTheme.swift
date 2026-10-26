@@ -115,7 +115,10 @@ struct AssembleEffect: ViewModifier {
         let mag = 170.0 + Double((index * 61) % 150)
         pull = CGSize(width: cos(a) * mag, height: sin(a) * mag)
         started = nil; ordered = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * stagger) { started = Date() }
+        // Animate the opacity 0->1 so early tiles fade in (not a hard instant pop).
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * stagger) {
+            withAnimation(.easeIn(duration: 1.6)) { started = Date() }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + Double(count) * stagger + dur + 0.4) {
             withAnimation(.spring(response: 1.9, dampingFraction: 0.92)) { ordered = true }
         }

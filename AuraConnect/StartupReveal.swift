@@ -212,7 +212,8 @@ struct StartupReveal: View {
     }
     private func afterVoiceprint() {
         phase = 4; phaseStart = Date(); play("aura_welcomeback")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.6) { finishOut() }
+        // Warm welcome VO measured at 7.92s — hold through it with a beat to breathe before fade.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.7) { finishOut() }
     }
     private func armVoiceprintTimer() {}
 }
