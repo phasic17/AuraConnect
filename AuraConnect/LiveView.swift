@@ -9,11 +9,12 @@ import Combine
 final class LiveTelemetry: ObservableObject {
     struct Person: Identifiable { let id = UUID(); var name: String; var bearing: Double; var dist: Double; var activity: Double; var color: Color }
     struct Vital: Identifiable { let id = UUID(); var name: String; var frac: Double; var value: String }
+    struct StreamLine: Identifiable { let id = UUID(); var kind: String; var text: String }
 
     @Published var people: [Person] = [
         .init(name: "Paul", bearing: -0.5, dist: 0.55, activity: 1.0, color: Color(red: 1, green: 0.69, blue: 0.28)),
-        .init(name: "guest · unverified", bearing: 2.1, dist: 0.80, activity: 0.30, color: Color(red: 0.5, green: 0.85, blue: 1.0)),
-        .init(name: "TV · ambient", bearing: -2.4, dist: 0.95, activity: 0.15, color: Color(white: 0.42))
+        .init(name: "guest \u{00B7} unverified", bearing: 2.1, dist: 0.80, activity: 0.30, color: Color(red: 0.5, green: 0.85, blue: 1.0)),
+        .init(name: "TV \u{00B7} ambient", bearing: -2.4, dist: 0.95, activity: 0.15, color: Color(white: 0.42))
     ]
     @Published var stream: [StreamLine] = []
     @Published var vitals: [Vital] = [
@@ -25,7 +26,6 @@ final class LiveTelemetry: ObservableObject {
     @Published var eventsProcessed: Int = 0
     let isSimulated = true
 
-    struct StreamLine: Identifiable { let id = UUID(); var kind: String; var text: String }
     private let lines: [(String, String)] = [
         ("q", "Paul: \"what's on my plate this morning?\""),
         ("j", "interject? 0.91 \u{2014} addressed, answer"),
@@ -58,6 +58,84 @@ final class LiveTelemetry: ObservableObject {
 private let EMBER = Color(red: 1, green: 0.69, blue: 0.28)
 private let OKGREEN = Color(red: 0.24, green: 0.90, blue: 0.69)
 
+// MARK: - Canvas drawing (extracted so SwiftUI view bodies stay type-checkable)
+
+private func drawRadar(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, _ people: [LiveTelemetry.Person]) {
+    let cx = size.width / 2
+    let cy = size.height / 2
+    let R = min(size.width, size.height) * 0.42
+    for k in 1...4 {
+        let rr = R * Double(k) / 4.0
+        let rect = CGRect(x: cx - rr, y: cy - rr, width: rr * 2, height: rr * 2)
+        ctx.stroke(Path(ellipseIn: rect), with: .color(.white.opacity(0.08)), lineWidth: 1)
+    }
+    var wave = Path()
+    let seg = 120
+    for i in 0...seg {
+        let a = Double(i) / Double(seg) * .pi * 2
+        let amp = 1 + 0.06 * sin(a * 6 + t * 2.5) + 0.04 * sin(a * 11 - t * 3)
+        let rr = R * 0.72 * amp
+        let p = CGPoint(x: cx + cos(a) * rr, y: cy + sin(a) * rr)
+        if i == 0 { wave.move(to: p) } else { wave.addLine(to: p) }
+    }
+    wave.closeSubpath()
+    ctx.stroke(wave, with: .color(Color(red: 0.5, green: 0.85, blue: 1).opacity(0.22)), lineWidth: 1.2)
+    let sw = (t.truncatingRemainder(dividingBy: 2.6)) / 2.6 * .pi * 2
+    var wedge = Path()
+    wedge.move(to: CGPoint(x: cx, y: cy))
+    wedge.addArc(center: CGPoint(x: cx, y: cy), radius: R, startAngle: .radians(sw - 0.5), endAngle: .radians(sw), clockwise: false)
+    wedge.closeSubpath()
+    ctx.fill(wedge, with: .color(EMBER.opacity(0.08)))
+    for p in people {
+        let x = cx + cos(p.bearing) * R * p.dist
+        let y = cy + sin(p.bearing) * R * p.dist
+        let pr = 6 + p.activity * 7 + sin(t * 3) * p.activity * 2
+        var line = Path()
+        line.move(to: CGPoint(x: cx, y: cy))
+        line.addLine(to: CGPoint(x: x, y: y))
+        ctx.stroke(line, with: .color(.white.opacity(0.06)), lineWidth: 1)
+        let dotRect = CGRect(x: x - pr, y: y - pr, width: pr * 2, height: pr * 2)
+        ctx.fill(Path(ellipseIn: dotRect), with: .color(p.color.opacity(0.9)))
+        let label = Text(p.name).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.78))
+        ctx.draw(label, at: CGPoint(x: x + pr + 6, y: y), anchor: .leading)
+    }
+    ctx.fill(Path(ellipseIn: CGRect(x: cx - 5, y: cy - 5, width: 10, height: 10)), with: .color(EMBER))
+}
+
+private func drawReveal(_ ctx: GraphicsContext, _ size: CGSize, _ e: Double) {
+    let a = min(e / 2.4, 1)
+    let cols = Int(size.width / 16)
+    let glyphs = ["0", "1", "\u{03A8}", "\u{0394}", "\u{25C7}", "\u{25B3}"]
+    if cols > 0 {
+        for i in 0..<cols {
+            let seed = Double((i * 131) % 97)
+            let y = (e * 520 + seed * 40).truncatingRemainder(dividingBy: size.height + 120) - 60
+            let gl = glyphs[(i + Int(e * 8)) % 6]
+            let lit = (i % 23) == (Int(e * 5) % 23)
+            let col: Color = lit ? EMBER : Color(red: 0.47, green: 0.85, blue: 1).opacity(0.25 + 0.5 * a)
+            ctx.draw(Text(gl).font(.system(size: 14)).foregroundStyle(col), at: CGPoint(x: Double(i) * 16 + 8, y: y))
+        }
+    }
+    let cx = size.width / 2
+    let cy = size.height / 2
+    let p = min(e / 2.2, 1)
+    let segs = 64
+    for i in 0..<segs {
+        let frac = Double(i) / Double(segs)
+        if frac >= p { continue }
+        let ang = -Double.pi / 2 - frac * .pi * 2
+        let x = cx + cos(ang) * 92
+        let y = cy + sin(ang) * 92
+        let s = 3 + sin(frac * 30 + p * 10) * 1.5
+        let col: Color = (i % 9 == 0) ? EMBER : Color(red: 1, green: 0.81, blue: 0.54)
+        ctx.fill(Path(CGRect(x: x - s / 2, y: y - s / 2, width: s, height: s)), with: .color(col))
+    }
+    let core = 10 + 6 * sin(p * 8)
+    ctx.fill(Path(ellipseIn: CGRect(x: cx - core, y: cy - core, width: core * 2, height: core * 2)), with: .color(EMBER))
+}
+
+// MARK: - Views
+
 struct LiveView: View {
     @EnvironmentObject var bt: BluetoothManager
     @StateObject private var tel = LiveTelemetry()
@@ -68,9 +146,7 @@ struct LiveView: View {
         ZStack {
             dashboard
             if revealing {
-                RevealOverlay(start: revealStart)
-                    .transition(.opacity)
-                    .zIndex(10)
+                RevealOverlay(start: revealStart).transition(.opacity).zIndex(10)
             }
         }
         .onAppear { tel.start(); if bt.isConnected { fire() } }
@@ -110,10 +186,9 @@ private extension View {
         self
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(alignment: .topLeading) {
-                Text(title).font(.system(size: 11)).tracking(2.2)
-                    .foregroundStyle(.secondary).padding(14)
+                Text(title).font(.system(size: 11)).tracking(2.2).foregroundStyle(.secondary).padding(14)
             }
-            .background(RadialGradient(colors: [Color(red:0.07,green:0.055,blue:0.105), Color(red:0.035,green:0.027,blue:0.06)], center: .top, startRadius: 2, endRadius: 520))
+            .background(RadialGradient(colors: [Color(red: 0.07, green: 0.055, blue: 0.105), Color(red: 0.035, green: 0.027, blue: 0.06)], center: .top, startRadius: 2, endRadius: 520))
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.06)))
     }
@@ -124,44 +199,7 @@ struct RoomRadar: View {
     var body: some View {
         TimelineView(.animation) { tl in
             Canvas { ctx, size in
-                let t = tl.date.timeIntervalSinceReferenceDate
-                let cx = size.width/2, cy = size.height/2
-                let R = min(size.width, size.height) * 0.42
-                for k in 1...4 {
-                    let rr = R * Double(k)/4
-                    ctx.stroke(Path(ellipseIn: CGRect(x: cx-rr, y: cy-rr, width: rr*2, height: rr*2)),
-                               with: .color(.white.opacity(0.08)), lineWidth: 1)
-                }
-                // breathing waveform ring
-                var wave = Path(); let seg = 120
-                for i in 0...seg {
-                    let a = Double(i)/Double(seg) * .pi * 2
-                    let amp = 1 + 0.06*sin(a*6 + t*2.5) + 0.04*sin(a*11 - t*3)
-                    let rr = R*0.72*amp
-                    let p = CGPoint(x: cx + cos(a)*rr, y: cy + sin(a)*rr)
-                    if i == 0 { wave.move(to: p) } else { wave.addLine(to: p) }
-                }
-                wave.closeSubpath()
-                ctx.stroke(wave, with: .color(Color(red:0.5,green:0.85,blue:1).opacity(0.22)), lineWidth: 1.2)
-                // sweep
-                let sw = (t.truncatingRemainder(dividingBy: 2.6))/2.6 * .pi * 2
-                var wedge = Path(); wedge.move(to: CGPoint(x: cx, y: cy))
-                wedge.addArc(center: CGPoint(x: cx, y: cy), radius: R, startAngle: .radians(sw-0.5), endAngle: .radians(sw), clockwise: false)
-                wedge.closeSubpath()
-                ctx.fill(wedge, with: .color(EMBER.opacity(0.08)))
-                // people
-                for p in people {
-                    let x = cx + cos(p.bearing)*R*p.dist
-                    let y = cy + sin(p.bearing)*R*p.dist
-                    let pr = 6 + p.activity*7 + sin(t*3)*p.activity*2
-                    ctx.stroke(Path { $0.move(to: CGPoint(x:cx,y:cy)); $0.addLine(to: CGPoint(x:x,y:y)) },
-                               with: .color(.white.opacity(0.06)), lineWidth: 1)
-                    ctx.fill(Path(ellipseIn: CGRect(x: x-pr, y: y-pr, width: pr*2, height: pr*2)),
-                             with: .color(p.color.opacity(0.9)))
-                    ctx.draw(Text(p.name).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.78)),
-                             at: CGPoint(x: x + pr + 6, y: y), anchor: .leading)
-                }
-                ctx.fill(Path(ellipseIn: CGRect(x: cx-5, y: cy-5, width: 10, height: 10)), with: .color(EMBER))
+                drawRadar(ctx, size, tl.date.timeIntervalSinceReferenceDate, people)
             }
         }
     }
@@ -170,7 +208,12 @@ struct RoomRadar: View {
 struct MindStream: View {
     var lines: [LiveTelemetry.StreamLine]
     private func color(_ k: String) -> Color {
-        switch k { case "q": return .white; case "j": return EMBER; case "m": return Color(red:0.5,green:0.85,blue:1); default: return .secondary }
+        switch k {
+        case "q": return .white
+        case "j": return EMBER
+        case "m": return Color(red: 0.5, green: 0.85, blue: 1)
+        default:  return .secondary
+        }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -198,7 +241,7 @@ struct VitalsView: View {
                     GeometryReader { g in
                         ZStack(alignment: .leading) {
                             Capsule().fill(Color.white.opacity(0.08))
-                            Capsule().fill(LinearGradient(colors: [EMBER, Color(red:1,green:0.48,blue:0.42)], startPoint: .leading, endPoint: .trailing))
+                            Capsule().fill(LinearGradient(colors: [EMBER, Color(red: 1, green: 0.48, blue: 0.42)], startPoint: .leading, endPoint: .trailing))
                                 .frame(width: g.size.width * min(v.frac, 1))
                         }
                     }.frame(height: 7)
@@ -226,7 +269,7 @@ struct EgressBar: View {
             }
         }
         .padding(.horizontal, 26).frame(height: 88)
-        .background(RadialGradient(colors: [Color(red:0.05,green:0.12,blue:0.09), Color(red:0.027,green:0.063,blue:0.047)], center: .bottom, startRadius: 2, endRadius: 400))
+        .background(RadialGradient(colors: [Color(red: 0.05, green: 0.12, blue: 0.09), Color(red: 0.027, green: 0.063, blue: 0.047)], center: .bottom, startRadius: 2, endRadius: 400))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(OKGREEN.opacity(0.18)))
     }
@@ -234,44 +277,20 @@ struct EgressBar: View {
 
 struct RevealOverlay: View {
     var start: Date
+    @ViewBuilder private func caption(_ e: Double) -> some View {
+        if e > 1.4 {
+            Text("BLE SECURE LINK ESTABLISHED \u{00B7} REVEALING YOUR ROOM")
+                .font(.system(size: 13)).tracking(2.5).foregroundStyle(.secondary).padding(.bottom, 60)
+        }
+    }
     var body: some View {
         TimelineView(.animation) { tl in
             let e = tl.date.timeIntervalSince(start)
             Canvas { ctx, size in
-                // telemetry rain
-                let a = min(e/2.4, 1)
-                let cols = Int(size.width/16)
-                for i in 0..<cols {
-                    let seed = Double((i*131) % 97)
-                    let y = (e*520 + seed*40).truncatingRemainder(dividingBy: size.height + 120) - 60
-                    let gl = ["0","1","\u{03A8}","\u{0394}","\u{25C7}","\u{25B3}"][(i + Int(e*8)) % 6]
-                    let lit = (i % 23) == (Int(e*5) % 23)
-                    ctx.draw(Text(gl).font(.system(size: 14)).foregroundStyle(lit ? EMBER : Color(red:0.47,green:0.85,blue:1).opacity(0.25 + 0.5*a)),
-                             at: CGPoint(x: Double(i)*16 + 8, y: y))
-                }
-                // igniting continuum mark (CCW pixelate)
-                let cx = size.width/2, cy = size.height/2
-                let p = min(e/2.2, 1)
-                let segs = 64
-                for i in 0..<segs {
-                    let frac = Double(i)/Double(segs)
-                    if frac >= p { continue }
-                    let ang = -Double.pi/2 - frac * .pi * 2
-                    let x = cx + cos(ang)*92, y = cy + sin(ang)*92
-                    let s = 3 + sin(frac*30 + p*10)*1.5
-                    ctx.fill(Path(CGRect(x: x-s/2, y: y-s/2, width: s, height: s)),
-                             with: .color(i % 9 == 0 ? EMBER : Color(red:1,green:0.81,blue:0.54)))
-                }
-                let core = 10 + 6*sin(p*8)
-                ctx.fill(Path(ellipseIn: CGRect(x: cx-core, y: cy-core, width: core*2, height: core*2)), with: .color(EMBER))
+                drawReveal(ctx, size, e)
             }
-            .background(Color(red:0.02,green:0.016,blue:0.04))
-            .overlay(alignment: .bottom) {
-                if e > 1.4 {
-                    Text("BLE SECURE LINK ESTABLISHED \u{00B7} REVEALING YOUR ROOM")
-                        .font(.system(size: 13)).tracking(2.5).foregroundStyle(.secondary).padding(.bottom, 60)
-                }
-            }
+            .background(Color(red: 0.02, green: 0.016, blue: 0.04))
+            .overlay(alignment: .bottom) { caption(e) }
         }
         .ignoresSafeArea()
     }
