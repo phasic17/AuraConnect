@@ -177,11 +177,11 @@ struct ClockCell: View {
     var body: some View {
         let f = DateFormatter(); f.timeZone = TimeZone(identifier: tz); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "HH:mm:ss"
         return VStack(spacing: 4) {
-            Text(city).font(.brand(7)).tracking(1.3).foregroundStyle(Color(red: 0.35, green: 0.82, blue: 1.0).opacity(0.8))
+            Text(city).font(.brand(7)).tracking(1.3).lineLimit(1).foregroundStyle(Color(red: 0.35, green: 0.82, blue: 1.0).opacity(0.8))
             Canvas { ctx, size in drawDotTime(ctx, size, f.string(from: now), Color(red: 1, green: 0.69, blue: 0.28)) }
                 .frame(width: 96, height: 15)
         }
-        .padding(.horizontal, 9).padding(.vertical, 7)
+        .frame(width: 112, height: 44)
         .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.55))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(red: 1, green: 0.69, blue: 0.28).opacity(0.32), lineWidth: 1))
@@ -288,7 +288,7 @@ struct LiveView: View {
     }
     private func scheduleHarden() {
         hardened = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 11.0) {
             withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
         }
     }

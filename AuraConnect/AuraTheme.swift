@@ -63,7 +63,7 @@ private func thashT(_ i: Int, _ s: Double) -> Double { let v = sin(Double(i) * s
 
 struct PixelMask: View {
     var start: Date?
-    var dur: Double = 2.2
+    var dur: Double = 3.3
     private func colHash(_ c: Int) -> Double { let v = sin(Double(c) * 91.7) * 43758.5453; return v - v.rounded(.down) }
     private func cellHash(_ c: Int, _ r: Int) -> Double { let v = sin(Double(c) * 12.9898 + Double(r) * 78.233) * 43758.5453; return v - v.rounded(.down) }
     var body: some View {
@@ -96,8 +96,8 @@ struct AssembleEffect: ViewModifier {
     var index: Int
     var count: Int
     var token: Int
-    private let dur = 2.2
-    private let stagger = 0.35
+    private let dur = 3.3
+    private let stagger = 0.53
     @State private var started: Date? = nil
     @State private var ordered = false
     @State private var pull: CGSize = .zero
