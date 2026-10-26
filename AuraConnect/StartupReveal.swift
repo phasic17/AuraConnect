@@ -38,8 +38,8 @@ struct PuckCard: View {
 }
 
 struct StartupReveal: View {
-    var onDone: () -> Void
     @ObservedObject var bt: BluetoothManager
+    var onDone: () -> Void
     @State private var started = Date()
     @State private var phase = 0          // 0 init, 1 detect, 2 connect, 3 voiceprint, 4 welcome
     @State private var phaseStart = Date()
