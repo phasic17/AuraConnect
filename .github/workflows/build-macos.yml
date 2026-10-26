@@ -1,0 +1,32 @@
+name: build-macos-dmg
+on:
+  push:
+    branches: [ feat/omicron-live ]
+  workflow_dispatch:
+jobs:
+  dmg:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Xcode
+        run: xcodebuild -version
+      - name: Build (unsigned, Release)
+        run: |
+          set -o pipefail
+          xcodebuild -project AuraConnect.xcodeproj -target AuraConnect -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
+            build
+      - name: Package .dmg
+        run: |
+          APP=$(find build -name "AuraConnect.app" -type d | head -1)
+          echo "APP=$APP"
+          mkdir -p dmgroot
+          cp -R "$APP" dmgroot/
+          ln -s /Applications dmgroot/Applications
+          hdiutil create -volname "AuraConnect" -srcfolder dmgroot -ov -format UDZO AuraConnect.dmg
+          ls -la AuraConnect.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AuraConnect-dmg
+          path: AuraConnect.dmg

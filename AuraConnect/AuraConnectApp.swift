@@ -1,17 +1,17 @@
-//
-//  AuraConnectApp.swift
-//  AuraConnect
-//
-//  Created by Paul Chou on 2/4/26.
-//
-
 import SwiftUI
 
 @main
 struct AuraConnectApp: App {
+    @StateObject private var bt = BluetoothManager()
+
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("AuraConnect") {
             ContentView()
+                .environmentObject(bt)
+                .frame(minWidth: 980, minHeight: 640)
+                .preferredColorScheme(.dark)
         }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentMinSize)
     }
 }
