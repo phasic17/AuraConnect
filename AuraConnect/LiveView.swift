@@ -63,24 +63,68 @@ private let MG = Color(red: 1.0, green: 0.38, blue: 0.72)
 private let VI = Color(red: 0.62, green: 0.48, blue: 1.0)
 private let OR = Color(red: 1.0, green: 0.52, blue: 0.22)
 
+private func drawTileChart(_ ctx: GraphicsContext, _ size: CGSize, _ kind: String, _ t: Double, _ ac: Color) {
+    let W = size.width, H = size.height
+    if kind == "spark" {
+        var line = Path(); var area = Path()
+        let n = 26
+        for i in 0...n {
+            let x = W * CGFloat(i) / CGFloat(n)
+            let v = 0.5 + 0.34 * sin(Double(i) * 0.5 + t * 0.6) + 0.12 * sin(Double(i) * 1.3 + t)
+            let y = H * (1 - CGFloat(max(0.05, min(0.95, v))))
+            let pt = CGPoint(x: x, y: y)
+            if i == 0 { line.move(to: pt); area.move(to: CGPoint(x: x, y: H)); area.addLine(to: pt) }
+            else { line.addLine(to: pt); area.addLine(to: pt) }
+        }
+        area.addLine(to: CGPoint(x: W, y: H)); area.closeSubpath()
+        ctx.fill(area, with: .linearGradient(Gradient(colors: [ac.opacity(0.28), .clear]), startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 0, y: H)))
+        ctx.stroke(line, with: .color(ac), style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+    } else if kind == "bars" {
+        let vals: [CGFloat] = [0.5, 0.82, 0.4, 0.95, 0.62, 0.74]
+        let bw = W / CGFloat(vals.count) * 0.55
+        let gap = W / CGFloat(vals.count)
+        for (i, v) in vals.enumerated() {
+            let vv = v * (0.82 + 0.18 * CGFloat(sin(t * 1.4 + Double(i))))
+            let x = CGFloat(i) * gap + (gap - bw) / 2
+            let bh = H * vv
+            ctx.fill(Path(roundedRect: CGRect(x: x, y: H - bh, width: bw, height: bh), cornerRadius: 2),
+                     with: .color(ac.opacity(0.4 + 0.5 * Double(v))))
+        }
+    } else if kind == "ring" {
+        let cx = W / 2, cy = H / 2, r = min(W, H) * 0.40
+        ctx.stroke(Path(ellipseIn: CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)), with: .color(ac.opacity(0.18)), lineWidth: 6)
+        var arc = Path()
+        arc.addArc(center: CGPoint(x: cx, y: cy), radius: r, startAngle: .degrees(-90), endAngle: .degrees(-90 + 360 * 0.42), clockwise: false)
+        ctx.stroke(arc, with: .color(ac), style: StrokeStyle(lineWidth: 6, lineCap: .round))
+    } else if kind == "dots" {
+        let n = 4, gap = W / CGFloat(n + 1)
+        for i in 0..<n {
+            let x = gap * CGFloat(i + 1)
+            let pulse = 0.55 + 0.45 * sin(t * 2 + Double(i) * 0.9)
+            ctx.fill(Path(ellipseIn: CGRect(x: x - 7, y: H / 2 - 7, width: 14, height: 14)), with: .color(ac.opacity(0.4 + 0.5 * pulse)))
+        }
+    }
+}
+
 struct ActionTile: View {
-    var t: String; var accent: Color; var big: String; var sub: String; var ph: Double
+    var t: String; var accent: Color; var big: String; var sub: String; var kind: String; var h: CGFloat; var ph: Double
     var body: some View {
         TimelineView(.animation) { tl in
             let tt = tl.date.timeIntervalSinceReferenceDate
             let dy = sin(tt * 0.5 + ph) * 3
             let dx = cos(tt * 0.4 + ph) * 2
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(t).font(.brand(10)).tracking(2).foregroundStyle(accent)
                     Spacer()
                     Circle().fill(accent).frame(width: 6, height: 6).shadow(color: accent, radius: 4)
                 }
-                Spacer(minLength: 8)
-                Text(big).font(.brand(24)).foregroundStyle(.white)
-                Text(sub).font(.system(size: 11)).foregroundStyle(.white.opacity(0.62))
+                Text(big).font(.brand(22)).foregroundStyle(.white)
+                Canvas { ctx, size in drawTileChart(ctx, size, kind, tt, accent) }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text(sub).font(.system(size: 10)).foregroundStyle(.white.opacity(0.6))
             }
-            .padding(15).frame(maxWidth: .infinity, minHeight: 116, alignment: .topLeading)
+            .padding(14).frame(maxWidth: .infinity).frame(height: h)
             .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.28))
             .background(accent.opacity(0.07))
             .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -185,21 +229,24 @@ struct LiveView: View {
             withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
         }
     }
-    private let COL = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
     private var dashboard: some View {
         VStack(spacing: 14) {
             FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
                 MindStream(lines: tel.stream)
             }
-            .frame(height: 190)
+            .frame(height: 176)
             .assemble(0, 8, -260, 170, assembleToken)
-            LazyVGrid(columns: COL, spacing: 14) {
-                ActionTile(t: "SIGNALS", accent: CY, big: "3 NEW", sub: "2 flagged for you", ph: 0.4).assemble(1, 8, 250, -120, assembleToken)
-                ActionTile(t: "PUCK FLEET", accent: GN, big: "4 / 4", sub: "all online \u{00B7} healthy", ph: 1.0).assemble(2, 8, -230, -160, assembleToken)
-                ActionTile(t: "APPROVALS", accent: MG, big: "2 PENDING", sub: "ship-gate review", ph: 1.6).assemble(3, 8, 240, 160, assembleToken)
-                ActionTile(t: "MODEL WATCH", accent: VI, big: "GLM-AIR", sub: "240ms \u{00B7} 3 resident", ph: 2.2).assemble(4, 8, -200, 120, assembleToken)
-                ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: "71\u{00B0}C", sub: "7.6 / 16 GB \u{00B7} AES on", ph: 2.8).assemble(5, 8, 210, -60, assembleToken)
-                ActionTile(t: "TODAY", accent: OR, big: "5 ITEMS", sub: "2 due today", ph: 3.4).assemble(6, 8, -150, -200, assembleToken)
+            HStack(alignment: .top, spacing: 14) {
+                VStack(spacing: 14) {
+                    ActionTile(t: "SIGNALS", accent: CY, big: "3 NEW", sub: "2 flagged for you", kind: "spark", h: 152, ph: 0.4).assemble(1, 8, 250, -120, assembleToken)
+                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: "71\u{00B0}C", sub: "7.6 / 16 GB \u{00B7} AES on", kind: "bars", h: 178, ph: 1.0).assemble(2, 8, -230, -160, assembleToken)
+                    ActionTile(t: "TODAY", accent: OR, big: "5 ITEMS", sub: "2 due today \u{00B7} 60% clear", kind: "ring", h: 128, ph: 1.6).assemble(3, 8, 240, 160, assembleToken)
+                }
+                VStack(spacing: 14) {
+                    ActionTile(t: "PUCK FLEET", accent: GN, big: "4 / 4", sub: "all online \u{00B7} healthy", kind: "dots", h: 118, ph: 2.2).assemble(4, 8, -200, 120, assembleToken)
+                    ActionTile(t: "MODEL WATCH", accent: VI, big: "GLM-AIR", sub: "240ms \u{00B7} 3 resident", kind: "spark", h: 168, ph: 2.8).assemble(5, 8, 210, -60, assembleToken)
+                    ActionTile(t: "APPROVALS", accent: MG, big: "2 PENDING", sub: "ship-gate review", kind: "ring", h: 146, ph: 3.4).assemble(6, 8, -150, -200, assembleToken)
+                }
             }
             EgressBar(events: tel.eventsProcessed)
                 .assemble(7, 8, 160, 190, assembleToken)
