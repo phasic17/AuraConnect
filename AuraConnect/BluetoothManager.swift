@@ -10,6 +10,7 @@ private let AURA_DATA_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0
 private let AURA_TELE_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F5")
 private let AURA_CHAT_UUID    = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F6")
 private let AURA_AUDIO_UUID   = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F7")
+private let AURA_BACKUP_UUID  = CBUUID(string: "E7810A71-73AE-499D-8C15-FAA9AEF0C3F8")
 
 enum LinkState: Equatable {
     case idle
@@ -122,6 +123,9 @@ final class BluetoothManager: NSObject, ObservableObject {
     @Published var telemetry: PuckTelemetry? = nil
     var onAuraReply: ((String) -> Void)? = nil
     var onAuraVoice: ((Data) -> Void)? = nil
+    @Published var backupProgress: Double = 0
+    @Published var backupStatus: String = ""
+    @Published var lastBackupURL: URL? = nil
 
     // Last successful connection — used to distinguish "never paired" from
     // "session ended cleanly N seconds ago" so the status indicator can show
@@ -162,6 +166,9 @@ final class BluetoothManager: NSObject, ObservableObject {
     private var chatChar: CBCharacteristic?
     private var audioChar: CBCharacteristic?
     private var audioBuf = Data()
+    private var backupChar: CBCharacteristic?
+    private var backupBuf = Data()
+    private var backupExpected = 0
 
     private var sendTask: Task<Void, Never>?
     private var pendingAck: CheckedContinuation<Result<Void, Error>, Never>?
@@ -634,7 +641,7 @@ extension BluetoothManager: CBPeripheralDelegate {
             Task { @MainActor in self.log("Aura service not found") }
             return
         }
-        peripheral.discoverCharacteristics([AURA_CTRL_UUID, AURA_DATA_UUID, AURA_TELE_UUID, AURA_CHAT_UUID, AURA_AUDIO_UUID], for: svc)
+        peripheral.discoverCharacteristics([AURA_CTRL_UUID, AURA_DATA_UUID, AURA_TELE_UUID, AURA_CHAT_UUID, AURA_AUDIO_UUID, AURA_BACKUP_UUID], for: svc)
     }
 
     nonisolated func peripheral(_ peripheral: CBPeripheral,
@@ -650,12 +657,14 @@ extension BluetoothManager: CBPeripheralDelegate {
         var tele: CBCharacteristic?
         var chat: CBCharacteristic?
         var audio: CBCharacteristic?
+        var backup: CBCharacteristic?
         for c in service.characteristics ?? [] {
             if c.uuid == AURA_CTRL_UUID { ctrl = c }
             if c.uuid == AURA_DATA_UUID { data = c }
             if c.uuid == AURA_TELE_UUID { tele = c }
             if c.uuid == AURA_CHAT_UUID { chat = c }
             if c.uuid == AURA_AUDIO_UUID { audio = c }
+            if c.uuid == AURA_BACKUP_UUID { backup = c }
         }
         let name = peripheral.name ?? "Aura Puck"
         let id = peripheral.identifier
@@ -665,12 +674,14 @@ extension BluetoothManager: CBPeripheralDelegate {
             self.teleChar = tele
             self.chatChar = chat
             self.audioChar = audio
+            self.backupChar = backup
             if let c = ctrl, c.properties.contains(.notify) {
                 peripheral.setNotifyValue(true, for: c)
             }
             if let t = tele { peripheral.setNotifyValue(true, for: t) }
             if let ch = chat { peripheral.setNotifyValue(true, for: ch) }
             if let a = audio { peripheral.setNotifyValue(true, for: a) }
+            if let bk = backup { peripheral.setNotifyValue(true, for: bk) }
             let d = AuraDevice(id: id, name: name, rssi: 0, peripheral: peripheral)
             self.state = .connected(d)
             self.lastConnectedDevice = d
@@ -685,6 +696,10 @@ extension BluetoothManager: CBPeripheralDelegate {
         guard let v = characteristic.value else { return }
         if characteristic.uuid == AURA_AUDIO_UUID {
             Task { @MainActor in self.handleAudio(v) }
+            return
+        }
+        if characteristic.uuid == AURA_BACKUP_UUID {
+            Task { @MainActor in self.handleBackup(v) }
             return
         }
         if characteristic.uuid == AURA_CHAT_UUID {
@@ -765,6 +780,34 @@ extension BluetoothManager {
             }
         } else {
             audioBuf.append(rest)
+        }
+    }
+    func requestBackup() {
+        guard let ch = backupChar, let p = peripheral else { return }
+        backupStatus = "backing"; backupProgress = 0
+        if let d = try? JSONSerialization.data(withJSONObject: ["backup": 1]) {
+            p.writeValue(d, for: ch, type: .withResponse)
+        }
+    }
+    func handleBackup(_ v: Data) {
+        guard let tag = v.first else { return }
+        let rest = v.count > 1 ? v.subdata(in: 1..<v.count) : Data()
+        if tag == 0 {
+            if let obj = (try? JSONSerialization.jsonObject(with: rest)) as? [String: Any] {
+                if let n = obj["n"] as? Int { backupBuf = Data(); backupExpected = n; backupProgress = 0; backupStatus = "backing" }
+                else if obj["end"] != nil {
+                    let done = backupBuf; backupBuf = Data()
+                    let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Aura Puck Backups")
+                    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    let ts = Int(Date().timeIntervalSince1970)
+                    let url = dir.appendingPathComponent("puck-config-\(ts).tar.gz")
+                    try? done.write(to: url)
+                    lastBackupURL = url; backupProgress = 1; backupStatus = "done"
+                }
+            }
+        } else {
+            backupBuf.append(rest)
+            if backupExpected > 0 { backupProgress = min(Double(backupBuf.count) / Double(backupExpected), 1) }
         }
     }
 }

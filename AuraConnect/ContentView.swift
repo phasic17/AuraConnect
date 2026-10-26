@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AppKit
 
 enum AuraSection: String, CaseIterable, Identifiable {
     case live          = "Live"
@@ -149,14 +150,13 @@ private struct Sidebar: View {
 
     private var brandHeader: some View {
         HStack(spacing: 10) {
-            ZStack {
-                Circle().stroke(AuraTheme.auraBlue.opacity(0.6), lineWidth: 1)
-                    .frame(width: 32, height: 32)
-                Circle().fill(AuraTheme.auraBlue.opacity(0.15))
-                    .frame(width: 22, height: 22)
-                Circle().fill(AuraTheme.auraBlue)
-                    .frame(width: 6, height: 6)
-                    .shadow(color: AuraTheme.auraBlue, radius: 6)
+            Group {
+                if let u = Bundle.main.url(forResource: "continuum_hq", withExtension: "png"),
+                   let ns = NSImage(contentsOf: u) {
+                    Image(nsImage: ns).resizable().interpolation(.high).scaledToFit().frame(width: 48, height: 48)
+                } else {
+                    Circle().stroke(AuraTheme.auraBlue.opacity(0.6), lineWidth: 1).frame(width: 44, height: 44)
+                }
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("AURA")

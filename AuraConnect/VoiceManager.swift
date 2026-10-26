@@ -127,7 +127,7 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
             awaitingVoice = true
             replyText = ""
             bt.askAura(t)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 16) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 22) {
                 if self.awaitingVoice && !self.locked {
                     self.awaitingVoice = false
                     if !self.replyText.isEmpty { self.speakReply(self.replyText) }

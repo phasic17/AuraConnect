@@ -317,7 +317,7 @@ struct LiveView: View {
                     ActionTile(t: "THERMAL", accent: OR, big: teleTemp(tm), sub: "puck core temperature", kind: "ring", h: 150, ph: 3.3).assemble(6, 8, assembleToken)
                 }
             }
-            LinkStatusBar(tm: bt.telemetry, connected: bt.isConnected)
+            BackupTile(bt: bt)
                 .assemble(7, 8, assembleToken)
         }
         .padding(16)
@@ -415,6 +415,44 @@ struct EgressBar: View {
         .background(Color(red: 0.02, green: 0.04, blue: 0.03).opacity(0.42))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(OKGREEN.opacity(0.22)))
+        .overlay(CornerTicks(accent: OKGREEN))
+    }
+}
+
+struct BackupTile: View {
+    @ObservedObject var bt: BluetoothManager
+    var body: some View {
+        let backing = bt.backupStatus == "backing"
+        let done = bt.backupStatus == "done"
+        return HStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    Image(systemName: "externaldrive.badge.checkmark").font(.system(size: 14)).foregroundStyle(OKGREEN)
+                    Text("ENCRYPTED BACKUP").font(.brand(13)).tracking(2).foregroundStyle(OKGREEN)
+                }
+                Text(done ? "Backed up \u{00B7} your puck's config is safe on this Mac"
+                          : (bt.isConnected ? "Pull your puck's encrypted config & state to this device"
+                                            : "connect your puck to back it up"))
+                    .font(.system(size: 11)).foregroundStyle(OKGREEN.opacity(0.72))
+                if backing { ProgressView(value: bt.backupProgress).frame(width: 240).tint(OKGREEN) }
+            }
+            Spacer()
+            Button(action: { bt.requestBackup() }) {
+                HStack(spacing: 8) {
+                    Image(systemName: backing ? "arrow.triangle.2.circlepath" : "arrow.down.circle.fill").font(.system(size: 14))
+                    Text(backing ? "BACKING UP\u{2026}" : "BACK UP NOW").font(.brand(12)).tracking(2)
+                }
+                .foregroundStyle(bt.isConnected ? OKGREEN : .white.opacity(0.4))
+                .padding(.horizontal, 18).frame(height: 42)
+                .background((bt.isConnected ? OKGREEN : Color.white).opacity(0.12), in: Capsule())
+                .overlay(Capsule().stroke(OKGREEN.opacity(bt.isConnected ? 0.5 : 0.2), lineWidth: 1))
+            }
+            .buttonStyle(.plain).disabled(!bt.isConnected || backing)
+        }
+        .padding(.horizontal, 26).frame(height: 84)
+        .background(Color(red: 0.02, green: 0.04, blue: 0.03).opacity(0.42))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(OKGREEN.opacity(0.3), lineWidth: 1))
         .overlay(CornerTicks(accent: OKGREEN))
     }
 }
