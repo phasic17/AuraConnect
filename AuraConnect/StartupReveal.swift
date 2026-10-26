@@ -10,32 +10,28 @@ private func continuumImage() -> Image? {
     if let u = Bundle.main.url(forResource: "continuum_hq", withExtension: "png"), let ns = NSImage(contentsOf: u) { return Image(nsImage: ns) }
     return nil
 }
+private func puckImageNamed(_ pearl: Bool) -> Image {
+    let name = pearl ? "puck_pearl" : "puck_onyx"
+    if let u = Bundle.main.url(forResource: name, withExtension: "png"), let ns = NSImage(contentsOf: u) { return Image(nsImage: ns) }
+    return Image(systemName: "circle.fill")
+}
 struct DetectedPuck: Identifiable { let id: Int; let name: String; let rssi: String; let pearl: Bool }
 
 struct PuckCard: View {
     var puck: DetectedPuck
-    var state: Int   // 0 idle, 1 selected-syncing, 2 dimmed
+    var state: Int
     var tap: () -> Void
     var body: some View {
         let ac = puck.pearl ? Color.white : CR_AMBER
         Button(action: tap) {
-            VStack(spacing: 10) {
-                ZStack {
-                    Circle().stroke(ac.opacity(0.5), lineWidth: 1).frame(width: 54, height: 54)
-                    Circle().fill(RadialGradient(colors: [ac, ac.opacity(0.1)], center: .center, startRadius: 1, endRadius: 26)).frame(width: 34, height: 34)
-                    Circle().fill(ac).frame(width: 6, height: 6)
-                }
-                Text(puck.name).font(.brand(12)).foregroundStyle(.white.opacity(0.95))
-                Text(state == 1 ? "SYNCING\u{2026}" : "\u{25CF} DETECTED \u{00B7} " + puck.rssi)
-                    .font(.brand(9)).tracking(1.5).foregroundStyle(state == 1 ? CR_OK : ac.opacity(0.8))
+            VStack(spacing: 6) {
+                puckImageNamed(puck.pearl).resizable().scaledToFit().frame(width: 110, height: 110)
+                    .shadow(color: ac.opacity(state == 2 ? 0 : 0.5), radius: 18)
+                    .opacity(state == 2 ? 0.4 : 1)
+                Text(puck.name).font(.brand(11)).foregroundStyle(.white.opacity(state == 2 ? 0.5 : 0.95))
+                Text(state == 1 ? "SYNCING\u{2026}" : "\u{25CF} " + puck.rssi)
+                    .font(.brand(8)).tracking(1.5).foregroundStyle(state == 1 ? CR_OK : ac.opacity(0.85))
             }
-            .frame(width: 150, height: 130)
-            .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke((state == 1 ? CR_OK : ac).opacity(state == 2 ? 0.2 : 0.7), lineWidth: 1.2))
-            .overlay(CornerTicks(accent: state == 1 ? CR_OK : ac))
-            .shadow(color: ac.opacity(state == 2 ? 0 : 0.3), radius: 12)
-            .opacity(state == 2 ? 0.4 : 1)
         }
         .buttonStyle(.plain)
     }
@@ -60,7 +56,7 @@ struct StartupReveal: View {
         return String(s.prefix(min(s.count, Int((el - start) / rate))))
     }
     private func ringReveal(_ e: Double) -> Double { phase == 0 ? min(max((e - 0.8) / 9.0, 0), 1) : 1 }
-    private func ringOpacity() -> Double { (phase == 1 || phase == 2) ? 0.22 : 1.0 }
+    private func ringOpacity() -> Double { (phase == 1 || phase == 2) ? 0.5 : 1.0 }
     private func header(_ e: Double, _ pe: Double) -> String {
         switch phase {
         case 0: return typed("initializing... standby for puck detection", e, 1.2, 0.08)
@@ -83,13 +79,25 @@ struct StartupReveal: View {
                     ringLayer(g.size, D, ringReveal(e)).opacity(ringOpacity())
                     centerLayer(e, pe, cx, cy, D)
                     if phase == 1 || phase == 2 {
-                        HStack(spacing: 18) {
-                            ForEach(pucks) { p in
-                                PuckCard(puck: p, state: cardState(p.id), tap: { if phase == 1 { goConnect(p.id) } })
+                        Canvas { ctx, _ in
+                            for i in 0..<pucks.count {
+                                let ang = (-90.0 + Double(i) * 120.0) * Double.pi / 180.0
+                                let edge = CGPoint(x: cx + cos(ang) * (D / 2), y: cy + sin(ang) * (D / 2))
+                                let pos = CGPoint(x: cx + cos(ang) * (D * 0.80), y: cy + sin(ang) * (D * 0.80))
+                                let sel = (phase == 2 && selected == i)
+                                let dim = (phase == 2 && selected != i)
+                                var line = Path(); line.move(to: edge); line.addLine(to: pos)
+                                let col: Color = sel ? CR_OK : CR_AMBER.opacity(dim ? 0.12 : 0.6)
+                                ctx.stroke(line, with: .color(col), style: StrokeStyle(lineWidth: sel ? 2.0 : 1.3, dash: [7, 7], dashPhase: -e * 10))
                             }
                         }
-                        .position(x: cx, y: cy)
-                        .opacity(min(pe / 0.8, 1))
+                        .opacity(min(pe / 0.6, 1))
+                        ForEach(Array(pucks.enumerated()), id: \.element.id) { pair in
+                            let ang = (-90.0 + Double(pair.offset) * 120.0) * Double.pi / 180.0
+                            PuckCard(puck: pair.element, state: cardState(pair.element.id), tap: { if phase == 1 { goConnect(pair.element.id) } })
+                                .position(x: cx + cos(ang) * (D * 0.80), y: cy + sin(ang) * (D * 0.80))
+                                .opacity(min(pe / 0.8, 1))
+                        }
                     }
                 }
                 .overlay(alignment: .topLeading) {

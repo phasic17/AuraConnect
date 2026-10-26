@@ -107,31 +107,58 @@ private func drawTileChart(_ ctx: GraphicsContext, _ size: CGSize, _ kind: Strin
 }
 
 struct ActionTile: View {
-    var t: String; var accent: Color; var big: String; var sub: String; var kind: String; var h: CGFloat; var ph: Double
+    var t: String; var accent: Color; var big: String; var kind: String; var h: CGFloat; var ph: Double
     var body: some View {
         TimelineView(.animation) { tl in
             let tt = tl.date.timeIntervalSinceReferenceDate
-            let dy = sin(tt * 0.5 + ph) * 3
-            let dx = cos(tt * 0.4 + ph) * 2
-            VStack(alignment: .leading, spacing: 6) {
+            let dy = sin(tt * 0.5 + ph) * 2.5
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(t).font(.brand(10)).tracking(2).foregroundStyle(accent)
+                    Text(t).font(.brand(9)).tracking(1.8).foregroundStyle(accent)
                     Spacer()
-                    Circle().fill(accent).frame(width: 6, height: 6).shadow(color: accent, radius: 4)
+                    Text(big).font(.brand(15)).foregroundStyle(.white)
                 }
-                Text(big).font(.brand(22)).foregroundStyle(.white)
                 Canvas { ctx, size in drawTileChart(ctx, size, kind, tt, accent) }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                Text(sub).font(.system(size: 10)).foregroundStyle(.white.opacity(0.6))
             }
-            .padding(14).frame(maxWidth: .infinity).frame(height: h)
-            .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.28))
+            .padding(13).frame(maxWidth: .infinity).frame(height: h)
+            .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.3))
             .background(accent.opacity(0.07))
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.55), lineWidth: 1))
             .overlay(CornerTicks(accent: accent))
             .shadow(color: accent.opacity(0.22), radius: 12)
-            .offset(x: dx, y: dy)
+            .offset(y: dy)
+        }
+    }
+}
+
+struct ClockCell: View {
+    var city: String
+    var tz: String
+    var now: Date
+    var body: some View {
+        let f = DateFormatter(); f.timeZone = TimeZone(identifier: tz); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "HH:mm:ss"
+        return VStack(spacing: 3) {
+            Text(city).font(.brand(8)).tracking(1.6).foregroundStyle(Color(red: 1, green: 0.69, blue: 0.28).opacity(0.78))
+            Text(f.string(from: now)).font(.system(size: 15, weight: .semibold, design: .monospaced)).foregroundStyle(.white.opacity(0.92))
+        }
+        .padding(.vertical, 8).frame(maxWidth: .infinity)
+        .background(Color(red: 0.03, green: 0.028, blue: 0.05).opacity(0.3))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(red: 0.35, green: 0.82, blue: 1.0).opacity(0.25), lineWidth: 1))
+    }
+}
+
+struct WorldClocks: View {
+    private let zones: [(String, String)] = [("SAN FRANCISCO", "America/Los_Angeles"), ("NEW YORK", "America/New_York"), ("LONDON", "Europe/London"), ("DUBAI", "Asia/Dubai"), ("SINGAPORE", "Asia/Singapore"), ("TOKYO", "Asia/Tokyo")]
+    var body: some View {
+        TimelineView(.periodic(from: Date(), by: 1)) { ctx in
+            HStack(spacing: 10) {
+                ForEach(zones, id: \.0) { z in
+                    ClockCell(city: z.0, tz: z.1, now: ctx.date)
+                }
+            }
         }
     }
 }
@@ -208,7 +235,10 @@ struct LiveView: View {
 
     var body: some View {
         ZStack {
-            dashboard
+            VStack(spacing: 0) {
+                WorldClocks().padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 2)
+                ScrollView { dashboard }
+            }
             if revealing { RevealOverlay(start: revealStart).transition(.opacity).zIndex(10) }
         }
         .onAppear { tel.start(); scheduleHarden(); if bt.isConnected { fire() } }
@@ -225,7 +255,7 @@ struct LiveView: View {
     }
     private func scheduleHarden() {
         hardened = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 9.6) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) {
             withAnimation(.easeInOut(duration: 2.2)) { hardened = true }
         }
     }
@@ -234,22 +264,27 @@ struct LiveView: View {
             FloatingTile(title: "THE MIND \u{2014} LIVE COGNITION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
                 MindStream(lines: tel.stream)
             }
-            .frame(height: 176)
-            .assemble(0, 8, -260, 170, assembleToken)
+            .frame(height: 150)
+            .assemble(0, 11, assembleToken)
             HStack(alignment: .top, spacing: 14) {
                 VStack(spacing: 14) {
-                    ActionTile(t: "SIGNALS", accent: CY, big: "3 NEW", sub: "2 flagged for you", kind: "spark", h: 152, ph: 0.4).assemble(1, 8, 250, -120, assembleToken)
-                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: "71\u{00B0}C", sub: "7.6 / 16 GB \u{00B7} AES on", kind: "bars", h: 178, ph: 1.0).assemble(2, 8, -230, -160, assembleToken)
-                    ActionTile(t: "TODAY", accent: OR, big: "5 ITEMS", sub: "2 due today \u{00B7} 60% clear", kind: "ring", h: 128, ph: 1.6).assemble(3, 8, 240, 160, assembleToken)
+                    ActionTile(t: "SIGNALS", accent: CY, big: "3", kind: "spark", h: 162, ph: 0.3).assemble(1, 11, assembleToken)
+                    ActionTile(t: "APPROVALS", accent: MG, big: "2", kind: "ring", h: 128, ph: 0.9).assemble(2, 11, assembleToken)
+                    ActionTile(t: "THERMAL", accent: OR, big: "71\u{00B0}", kind: "spark", h: 184, ph: 1.5).assemble(3, 11, assembleToken)
                 }
                 VStack(spacing: 14) {
-                    ActionTile(t: "PUCK FLEET", accent: GN, big: "4 / 4", sub: "all online \u{00B7} healthy", kind: "dots", h: 118, ph: 2.2).assemble(4, 8, -200, 120, assembleToken)
-                    ActionTile(t: "MODEL WATCH", accent: VI, big: "GLM-AIR", sub: "240ms \u{00B7} 3 resident", kind: "spark", h: 168, ph: 2.8).assemble(5, 8, 210, -60, assembleToken)
-                    ActionTile(t: "APPROVALS", accent: MG, big: "2 PENDING", sub: "ship-gate review", kind: "ring", h: 146, ph: 3.4).assemble(6, 8, -150, -200, assembleToken)
+                    ActionTile(t: "PUCK FLEET", accent: GN, big: "4/4", kind: "dots", h: 120, ph: 2.1).assemble(4, 11, assembleToken)
+                    ActionTile(t: "MODEL", accent: VI, big: "240ms", kind: "spark", h: 178, ph: 2.7).assemble(5, 11, assembleToken)
+                    ActionTile(t: "NETWORK", accent: CY, big: "0kb", kind: "bars", h: 138, ph: 3.3).assemble(6, 11, assembleToken)
+                }
+                VStack(spacing: 14) {
+                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: "3", kind: "bars", h: 168, ph: 3.9).assemble(7, 11, assembleToken)
+                    ActionTile(t: "TODAY", accent: OR, big: "5", kind: "ring", h: 132, ph: 4.5).assemble(8, 11, assembleToken)
+                    ActionTile(t: "UPTIME", accent: GN, big: "99.9%", kind: "ring", h: 152, ph: 5.1).assemble(9, 11, assembleToken)
                 }
             }
             EgressBar(events: tel.eventsProcessed)
-                .assemble(7, 8, 160, 190, assembleToken)
+                .assemble(10, 11, assembleToken)
         }
         .padding(16)
     }

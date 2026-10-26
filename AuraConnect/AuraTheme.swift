@@ -63,7 +63,7 @@ private func thashT(_ i: Int, _ s: Double) -> Double { let v = sin(Double(i) * s
 
 struct PixelMask: View {
     var start: Date?
-    var dur: Double = 2.9
+    var dur: Double = 2.2
     private func colHash(_ c: Int) -> Double { let v = sin(Double(c) * 91.7) * 43758.5453; return v - v.rounded(.down) }
     private func cellHash(_ c: Int, _ r: Int) -> Double { let v = sin(Double(c) * 12.9898 + Double(r) * 78.233) * 43758.5453; return v - v.rounded(.down) }
     var body: some View {
@@ -95,32 +95,34 @@ struct PixelMask: View {
 struct AssembleEffect: ViewModifier {
     var index: Int
     var count: Int
-    var pull: CGSize
     var token: Int
-    private let dur = 2.9
+    private let dur = 2.2
+    private let stagger = 0.35
     @State private var started: Date? = nil
     @State private var ordered = false
-    @State private var jitter: CGSize = .zero
+    @State private var pull: CGSize = .zero
     func body(content: Content) -> some View {
         content
             .overlay(PixelMask(start: started, dur: dur))
             .opacity(started == nil ? 0 : 1)
-            .offset(ordered ? .zero : CGSize(width: pull.width + jitter.width, height: pull.height + jitter.height))
-            .zIndex(Double(index))
+            .offset(ordered ? .zero : pull)
+            .zIndex(ordered ? 0 : Double(count - index))
             .onAppear { run() }
             .onChange(of: token) { _, _ in run() }
     }
     private func run() {
-        jitter = CGSize(width: (thashT(index, 3.1) - 0.5) * 70, height: (thashT(index, 7.7) - 0.5) * 26)
+        let a = Double(index) * 2.3999632
+        let mag = 170.0 + Double((index * 61) % 150)
+        pull = CGSize(width: cos(a) * mag, height: sin(a) * mag)
         started = nil; ordered = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * dur) { started = Date() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(count) * dur + 0.6) {
-            withAnimation(.spring(response: 1.4, dampingFraction: 0.88)) { ordered = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * stagger) { started = Date() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(count) * stagger + dur + 0.4) {
+            withAnimation(.spring(response: 1.25, dampingFraction: 0.9)) { ordered = true }
         }
     }
 }
 extension View {
-    func assemble(_ index: Int, _ count: Int, _ pullX: Double, _ pullY: Double, _ token: Int) -> some View {
-        modifier(AssembleEffect(index: index, count: count, pull: CGSize(width: pullX, height: pullY), token: token))
+    func assemble(_ index: Int, _ count: Int, _ token: Int) -> some View {
+        modifier(AssembleEffect(index: index, count: count, token: token))
     }
 }
