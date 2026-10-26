@@ -129,17 +129,15 @@ private func drawTileChart(_ ctx: GraphicsContext, _ size: CGSize, _ kind: Strin
         ctx.stroke(arc2, with: .color(ac.opacity(0.45)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
         ctx.fill(Path(ellipseIn: CGRect(x: cx - 2.5, y: cy - 2.5, width: 5, height: 5)), with: .color(ac))
     } else if kind == "dots" {
-        let cols = 10, rows = 3
-        let gx = W / CGFloat(cols + 1), gy = H / CGFloat(rows + 1)
-        for r in 0..<rows {
-            for i in 0..<cols {
-                let x = gx * CGFloat(i + 1), y = gy * CGFloat(r + 1)
-                let pulse = 0.5 + 0.5 * sin(t * 2 + Double(i) * 0.5 + Double(r) * 1.1)
-                let on = ((i + r) % 4 != 0)
-                let rad: CGFloat = 4
-                ctx.fill(Path(ellipseIn: CGRect(x: x - rad, y: y - rad, width: rad * 2, height: rad * 2)),
-                         with: .color(ac.opacity(on ? (0.3 + 0.55 * pulse) : 0.12)))
-            }
+        let cols = 12
+        let gx = W / CGFloat(cols + 1), y = H / 2
+        for i in 0..<cols {
+            let x = gx * CGFloat(i + 1)
+            let pulse = 0.5 + 0.5 * sin(t * 2.4 + Double(i) * 0.45)
+            let on = (i == 0)                       // one puck online
+            let rad: CGFloat = 5.5
+            ctx.fill(Path(ellipseIn: CGRect(x: x - rad, y: y - rad, width: rad * 2, height: rad * 2)),
+                     with: .color(ac.opacity(on ? (0.5 + 0.5 * pulse) : 0.16)))
         }
     }
 }
@@ -172,6 +170,52 @@ struct ActionTile: View {
             .shadow(color: accent.opacity(hovering ? 0.35 : 0.22), radius: hovering ? 16 : 12)
             .offset(y: dy)
             .onHover { hovering = $0 }
+        }
+    }
+}
+
+struct NewsTile: View {
+    var h: CGFloat
+    private let accent = Color(red: 0.98, green: 0.38, blue: 0.34)
+    private let items: [(String, String)] = [
+        ("ContinuumOS flags a critical 48-hour-old flaw in ~13 minutes \u{2014} then declines to exploit it", "Continuum \u{00B7} live challenge"),
+        ("Aura Puck founding reservations are live and converting", "AuraVision \u{00B7} reveal"),
+        ("TONi enters NHS incubation \u{2014} ~18,000 patients", "AuraVision Health \u{00B7} UK"),
+        ("Farsight on-prem appliance: private intelligence, in your rack", "Farsight \u{00B7} enterprise"),
+    ]
+    var body: some View {
+        TimelineView(.animation) { tl in
+            let tt = tl.date.timeIntervalSinceReferenceDate
+            let i = Int(tt / 5.0) % items.count
+            let blink = 0.4 + 0.6 * (0.5 + 0.5 * sin(tt * 3))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text("BREAKING").font(.brand(8)).tracking(1.5).foregroundStyle(.white)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Capsule().fill(accent.opacity(0.9)))
+                    Text("LATEST NEWS").font(.brand(9)).tracking(2).foregroundStyle(accent)
+                    Spacer()
+                    Circle().fill(accent).frame(width: 6, height: 6).opacity(blink)
+                }
+                Text(items[i].0).font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.95))
+                    .lineLimit(3).fixedSize(horizontal: false, vertical: true).id(i)
+                Spacer(minLength: 2)
+                HStack {
+                    Text(items[i].1).font(.system(size: 10)).foregroundStyle(.white.opacity(0.5))
+                    Spacer()
+                    HStack(spacing: 4) {
+                        ForEach(0..<items.count, id: \.self) { j in
+                            Circle().fill(j == i ? accent : Color.white.opacity(0.22)).frame(width: 5, height: 5)
+                        }
+                    }
+                }
+            }
+            .padding(13).frame(maxWidth: .infinity).frame(height: h, alignment: .top)
+            .background(Color(red: 0.05, green: 0.03, blue: 0.03).opacity(0.34))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.45), lineWidth: 1))
+            .overlay(CornerTicks(accent: accent))
+            .shadow(color: accent.opacity(0.22), radius: 12)
         }
     }
 }
@@ -347,7 +391,8 @@ struct LiveView: View {
                     ActionTile(t: "MODEL WATCH", accent: VI, big: "\(tm?.models ?? 0) RESIDENT", sub: "glm-air \u{00B7} on-device \u{00B7} 0 errors", kind: "spark", h: 246, ph: 0.9).assemble(2, 8, assembleToken)
                 }
                 VStack(spacing: 16) {
-                    ActionTile(t: "PUCK FLEET", accent: GN, big: bt.isConnected ? "1 / 1 ONLINE" : "0 / 1", sub: bt.isConnected ? "Aura Puck \u{00B7} secure link" : "scanning\u{2026}", kind: "dots", h: 228, ph: 1.5).assemble(3, 8, assembleToken)
+                    ActionTile(t: "PUCK FLEET", accent: GN, big: bt.isConnected ? "1 / 1 ONLINE" : "0 / 1", sub: bt.isConnected ? "Aura Puck \u{00B7} secure link" : "scanning\u{2026}", kind: "dots", h: 118, ph: 1.5).assemble(3, 8, assembleToken)
+                    NewsTile(h: 150).assemble(8, 9, assembleToken)
                     ActionTile(t: "APPROVALS", accent: MG, big: "2 PENDING", sub: "ship-gate review \u{00B7} your call", kind: "ring", h: 116, ph: 2.1).assemble(4, 8, assembleToken)
                 }
                 VStack(spacing: 16) {
