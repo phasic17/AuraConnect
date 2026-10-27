@@ -25,6 +25,11 @@ private func psiFmt(_ v: Double) -> String {
     let f = NumberFormatter(); f.numberStyle = .decimal; f.maximumFractionDigits = 0
     return f.string(from: NSNumber(value: v)) ?? "\(Int(v))"
 }
+// compact, rounded to the hundred: 48200 -> "48.2K"
+private func psiK(_ v: Double) -> String {
+    if v >= 1000 { return String(format: "%.1fK", v / 1000) }
+    return psiFmt(v)
+}
 private func copyToPasteboard(_ s: String) {
     NSPasteboard.general.clearContents(); NSPasteboard.general.setString(s, forType: .string)
 }
@@ -109,11 +114,11 @@ struct PsiCollapsedTile: View {
             ZStack {
                 PsiGauge(frac: credits.fracLeft, lineWidth: 12).frame(width: 130, height: 130)
                 VStack(spacing: 3) {
-                    HStack(spacing: 6) {
-                        PsiCoinBadge(size: 20)
-                        Text(psiFmt(credits.remaining)).font(AuraFont.semi(26)).foregroundStyle(AuraTheme.textPrimary)
+                    HStack(spacing: 7) {
+                        PsiCoinBadge(size: 22)
+                        Text(psiK(credits.remaining)).font(AuraFont.semi(30)).foregroundStyle(AuraTheme.textPrimary)
                     }
-                    Text("$PSI LEFT").auraLabel(9).foregroundStyle(AuraTheme.textDim)
+                    Text("REMAINING").auraLabel(9).foregroundStyle(AuraTheme.textDim)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -236,11 +241,11 @@ struct PsiExpandedPanel: View {
                     ZStack {
                         PsiGauge(frac: credits.fracLeft, lineWidth: 18).frame(width: 220, height: 220)
                         VStack(spacing: 5) {
-                            HStack(spacing: 9) {
-                                PsiCoinBadge(size: 34)
-                                Text(psiFmt(credits.remaining)).font(AuraFont.semi(42)).foregroundStyle(AuraTheme.textPrimary)
+                            HStack(spacing: 10) {
+                                PsiCoinBadge(size: 38)
+                                Text(psiK(credits.remaining)).font(AuraFont.semi(50)).foregroundStyle(AuraTheme.textPrimary)
                             }
-                            Text("$PSI REMAINING").auraLabel(11).foregroundStyle(AuraTheme.textDim)
+                            Text("REMAINING").auraLabel(11).foregroundStyle(AuraTheme.textDim)
                         }
                     }
                     HStack(spacing: 30) {
