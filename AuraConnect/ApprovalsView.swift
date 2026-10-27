@@ -4,6 +4,7 @@ import SwiftUI
 enum DashOverlay: Equatable {
     case psi
     case approval(Int)
+    case shop
 }
 
 struct Approval {

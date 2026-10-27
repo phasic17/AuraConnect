@@ -418,6 +418,9 @@ struct LiveView: View {
                     case .approval(let i):
                         ApprovalExpandedPanel(item: Approval.demo[i]) { withAnimation(expandAnim) { overlay = nil } }
                             .frame(maxWidth: 620)
+                    case .shop:
+                        ShopExpandedPanel { withAnimation(expandAnim) { overlay = nil } }
+                            .frame(maxWidth: 680)
                     }
                 }
                 .padding(40)
@@ -452,7 +455,21 @@ struct LiveView: View {
         let tm = bt.telemetry
         return VStack(spacing: 16) {
             HStack(alignment: .top, spacing: 16) {
-                // LEFT: the Mind — full-height conversation column
+                // column 1 (left) — $PSI balance (upper-left) + approvals
+                VStack(spacing: 16) {
+                    PsiCollapsedTile(credits: credits) { withAnimation(expandAnim) { overlay = .psi } }
+                    ApprovalsTile(h: 276) { i in withAnimation(expandAnim) { overlay = .approval(i) } }
+                        .assemble(4, 8, assembleToken)
+                }
+                .frame(maxWidth: .infinity)
+                // column 2 (middle) — reservations + shop/upgrade
+                VStack(spacing: 16) {
+                    ActionTile(t: "RESERVATIONS", accent: CY, big: "148 UNITS", sub: "reserved \u{00B7} +4 today \u{00B7} Onyx-led", kind: "spark", h: 320, ph: 0.3).assemble(1, 8, assembleToken)
+                    ShopTile(h: 320) { withAnimation(expandAnim) { overlay = .shop } }
+                        .assemble(5, 8, assembleToken)
+                }
+                .frame(maxWidth: .infinity)
+                // column 3 (far right) — the Mind, full-height conversation
                 FloatingTile(title: "THE MIND \u{2014} LIVE CONVERSATION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
                     MindLive(chat: tm?.chat ?? [], demo: tel.stream)
                 }
@@ -460,26 +477,6 @@ struct LiveView: View {
                 .frame(height: 656)
                 .clipped()
                 .assemble(0, 8, assembleToken)
-                // column 2 — $PSI credits + approvals
-                VStack(spacing: 16) {
-                    PsiCollapsedTile(credits: credits) { withAnimation(expandAnim) { overlay = .psi } }
-                    ApprovalsTile(h: 276) { i in withAnimation(expandAnim) { overlay = .approval(i) } }
-                        .assemble(4, 8, assembleToken)
-                }
-                .frame(maxWidth: .infinity)
-                // column 3 — news + reservations
-                VStack(spacing: 16) {
-                    NewsTile(h: 320).assemble(8, 9, assembleToken)
-                    ActionTile(t: "RESERVATIONS", accent: CY, big: "148 UNITS", sub: "reserved \u{00B7} +4 today \u{00B7} Onyx-led", kind: "spark", h: 320, ph: 0.3).assemble(1, 8, assembleToken)
-                }
-                .frame(maxWidth: .infinity)
-                // column 4 — device health
-                VStack(spacing: 16) {
-                    ActionTile(t: "PUCK FLEET", accent: GN, big: bt.isConnected ? "1 / 1 ONLINE" : "0 / 1", sub: bt.isConnected ? "Aura Puck \u{00B7} secure link" : "scanning\u{2026}", kind: "dots", h: 118, ph: 1.5).assemble(3, 8, assembleToken)
-                    ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: teleMem(tm), sub: "\(tm?.models ?? 0) models \u{00B7} AES link \u{00B7} encrypted", kind: "bars", h: 240, ph: 2.7).assemble(5, 8, assembleToken)
-                    ActionTile(t: "THERMAL", accent: OR, big: teleTemp(tm), sub: "last 24h \u{00B7} puck core \u{00B0}C", kind: "thermal24", h: 200, ph: 3.3).assemble(6, 8, assembleToken)
-                }
-                .frame(maxWidth: .infinity)
             }
             BackupTile(bt: bt)
                 .assemble(7, 8, assembleToken)
