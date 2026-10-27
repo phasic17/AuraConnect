@@ -1,40 +1,14 @@
 import SwiftUI
 
 struct LedgerUsageView: View {
-    @State private var psiExpanded = false
-    private let credits = PsiCredits.demo
-    private var expandAnim: Animation { .spring(response: 0.6, dampingFraction: 0.84) }
-
     var body: some View {
-        ZStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 16) {
-                header
-                PsiCollapsedTile(credits: credits) { hovering in
-                    if hovering { withAnimation(expandAnim) { psiExpanded = true } }
-                }
-                tilesRow
-                historyPanel
-                Spacer()
-            }
-            .padding(.top, 6)
-            .blur(radius: psiExpanded ? 16 : 0)
-            .opacity(psiExpanded ? 0.5 : 1)
-            .allowsHitTesting(!psiExpanded)
-
-            if psiExpanded {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                    .onTapGesture { withAnimation(expandAnim) { psiExpanded = false } }
-                PsiExpandedPanel(credits: credits) { withAnimation(expandAnim) { psiExpanded = false } }
-                    .frame(maxWidth: 740)
-                    .padding(.top, 48)
-                    .onHover { inside in if !inside { withAnimation(expandAnim) { psiExpanded = false } } }
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.92, anchor: .top).combined(with: .opacity),
-                        removal: .scale(scale: 0.96, anchor: .top).combined(with: .opacity)))
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            header
+            tilesRow
+            historyPanel
+            Spacer()
         }
-        .animation(expandAnim, value: psiExpanded)
+        .padding(.top, 6)
     }
 
     private var header: some View {

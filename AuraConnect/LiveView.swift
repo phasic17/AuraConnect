@@ -350,12 +350,31 @@ struct LiveView: View {
     @State private var revealing = false
     @State private var revealStart = Date()
     @State private var hardened = false
+    @State private var psiExpanded = false
+    private let credits = PsiCredits.demo
+    private var expandAnim: Animation { .spring(response: 0.6, dampingFraction: 0.84) }
 
     var body: some View {
         ZStack {
             ScrollView { dashboard }
+                .blur(radius: psiExpanded ? 16 : 0)
+                .opacity(psiExpanded ? 0.5 : 1)
+                .allowsHitTesting(!psiExpanded)
             if revealing { RevealOverlay(start: revealStart).transition(.opacity).zIndex(10) }
+            if psiExpanded {
+                Color.black.opacity(0.4).ignoresSafeArea()
+                    .onTapGesture { withAnimation(expandAnim) { psiExpanded = false } }
+                    .zIndex(20)
+                PsiExpandedPanel(credits: credits) { withAnimation(expandAnim) { psiExpanded = false } }
+                    .frame(maxWidth: 740).padding(40)
+                    .onHover { inside in if !inside { withAnimation(expandAnim) { psiExpanded = false } } }
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.92).combined(with: .opacity),
+                        removal: .scale(scale: 0.96).combined(with: .opacity)))
+                    .zIndex(21)
+            }
         }
+        .animation(expandAnim, value: psiExpanded)
         .onAppear { tel.start(); scheduleHarden(); if bt.isConnected { fire() } }
         .onDisappear { tel.stop() }
         .onChange(of: bt.isConnected) { _, now in if now { fire() } }
@@ -387,6 +406,7 @@ struct LiveView: View {
             .assemble(0, 8, assembleToken)
             HStack(alignment: .top, spacing: 16) {
                 VStack(spacing: 16) {
+                    PsiCollapsedTile(credits: credits) { h in if h { withAnimation(expandAnim) { psiExpanded = true } } }
                     ActionTile(t: "SIGNALS", accent: CY, big: "3 NEW", sub: "2 flagged for you \u{00B7} Decoder replied", kind: "spark", h: 146, ph: 0.3).assemble(1, 8, assembleToken)
                     ActionTile(t: "MODEL WATCH", accent: VI, big: "\(tm?.models ?? 0) RESIDENT", sub: "glm-air \u{00B7} on-device \u{00B7} 0 errors", kind: "spark", h: 246, ph: 0.9).assemble(2, 8, assembleToken)
                 }

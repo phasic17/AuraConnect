@@ -86,32 +86,36 @@ struct PsiCollapsedTile: View {
     var onHover: (Bool) -> Void
     @State private var hovering = false
     var body: some View {
-        HStack(spacing: 22) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 7) {
+                Circle().fill(AuraTheme.auraBlue).frame(width: 6, height: 6)
+                Text("$PSI CREDITS").auraLabel(11).foregroundStyle(AuraTheme.auraBlue)
+                Spacer()
+            }
             ZStack {
-                PsiGauge(frac: credits.fracLeft, lineWidth: 11).frame(width: 118, height: 118)
+                PsiGauge(frac: credits.fracLeft, lineWidth: 12).frame(width: 130, height: 130)
                 VStack(spacing: 2) {
-                    Text(psiFmt(credits.remaining)).font(AuraFont.semi(24)).foregroundStyle(AuraTheme.textPrimary)
+                    Text(psiFmt(credits.remaining)).font(AuraFont.semi(28)).foregroundStyle(AuraTheme.textPrimary)
                     Text("$PSI LEFT").auraLabel(9).foregroundStyle(AuraTheme.textDim)
                 }
             }
-            VStack(alignment: .leading, spacing: 10) {
-                Text("$PSI CREDITS").auraLabel(11).foregroundStyle(AuraTheme.auraBlue)
-                HStack(spacing: 26) {
-                    stat("USED THIS CYCLE", psiFmt(credits.used))
-                    stat("BALANCE", psiFmt(credits.held))
-                }
-                Sparkline(values: credits.usage7d).frame(height: 30).opacity(0.9)
-                Text(hovering ? "release to top up" : "hover to top up")
-                    .auraBody(11).foregroundStyle(AuraTheme.textFaint)
+            .frame(maxWidth: .infinity)
+            HStack {
+                stat("USED", psiFmt(credits.used))
+                Spacer()
+                stat("BALANCE", psiFmt(credits.held))
             }
-            Spacer()
+            Sparkline(values: credits.usage7d).frame(height: 26).opacity(0.9)
+            Text(hovering ? "release to top up" : "hover to top up")
+                .auraBody(11).foregroundStyle(AuraTheme.textFaint)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
         .auraGlass(corner: 18)
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AuraTheme.auraBlue.opacity(hovering ? 0.45 : 0), lineWidth: 1)
+                .stroke(AuraTheme.auraBlue.opacity(hovering ? 0.5 : 0.18), lineWidth: 1)
         )
-        .scaleEffect(hovering ? 1.012 : 1.0)
+        .scaleEffect(hovering ? 1.015 : 1.0)
         .onHover { h in
             hovering = h
             onHover(h)
@@ -120,7 +124,7 @@ struct PsiCollapsedTile: View {
     private func stat(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label).auraLabel(9).foregroundStyle(AuraTheme.textDim)
-            Text(value).font(AuraFont.semi(20)).foregroundStyle(AuraTheme.textPrimary)
+            Text(value).font(AuraFont.semi(17)).foregroundStyle(AuraTheme.textPrimary)
         }
     }
 }
