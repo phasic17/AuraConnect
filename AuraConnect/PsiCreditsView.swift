@@ -53,11 +53,11 @@ struct PsiGauge: View {
             Circle()
                 .trim(from: 0, to: max(0.001, frac))
                 .stroke(
-                    AngularGradient(gradient: Gradient(colors: [AuraTheme.auraBlueDeep, AuraTheme.ember, AuraTheme.warnAmber]),
+                    AngularGradient(gradient: Gradient(colors: [AuraTheme.auraBlueDeep, AuraTheme.auraBlue, AuraTheme.warnAmber]),
                                     center: .center, startAngle: .degrees(-90), endAngle: .degrees(270)),
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .shadow(color: AuraTheme.ember.opacity(0.5), radius: 8)
+                .shadow(color: AuraTheme.auraBlue.opacity(0.5), radius: 8)
         }
     }
 }
@@ -75,7 +75,7 @@ private struct Sparkline: View {
                     if i == 0 { p.move(to: CGPoint(x: x, y: y)) } else { p.addLine(to: CGPoint(x: x, y: y)) }
                 }
             }
-            .stroke(AuraTheme.ember, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            .stroke(AuraTheme.auraBlue, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
         }
     }
 }
@@ -95,7 +95,7 @@ struct PsiCollapsedTile: View {
                 }
             }
             VStack(alignment: .leading, spacing: 10) {
-                Text("$PSI CREDITS").auraLabel(11).foregroundStyle(AuraTheme.ember)
+                Text("$PSI CREDITS").auraLabel(11).foregroundStyle(AuraTheme.auraBlue)
                 HStack(spacing: 26) {
                     stat("USED THIS CYCLE", psiFmt(credits.used))
                     stat("BALANCE", psiFmt(credits.held))
@@ -109,7 +109,7 @@ struct PsiCollapsedTile: View {
         .auraGlass(corner: 18)
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AuraTheme.ember.opacity(hovering ? 0.45 : 0), lineWidth: 1)
+                .stroke(AuraTheme.auraBlue.opacity(hovering ? 0.45 : 0), lineWidth: 1)
         )
         .scaleEffect(hovering ? 1.012 : 1.0)
         .onHover { h in
@@ -145,10 +145,10 @@ private struct PsiTopUp: View {
     private func tabButton(_ title: String, _ t: Tab) -> some View {
         Button { withAnimation(.easeInOut(duration: 0.25)) { tab = t } } label: {
             Text(title).auraLabel(11)
-                .foregroundStyle(tab == t ? AuraTheme.ember : AuraTheme.textDim)
+                .foregroundStyle(tab == t ? AuraTheme.auraBlue : AuraTheme.textDim)
                 .frame(maxWidth: .infinity).padding(.vertical, 9)
-                .background(RoundedRectangle(cornerRadius: 9).fill(tab == t ? AuraTheme.ember.opacity(0.14) : .clear))
-                .overlay(RoundedRectangle(cornerRadius: 9).stroke(tab == t ? AuraTheme.ember.opacity(0.5) : .clear, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 9).fill(tab == t ? AuraTheme.auraBlue.opacity(0.14) : .clear))
+                .overlay(RoundedRectangle(cornerRadius: 9).stroke(tab == t ? AuraTheme.auraBlue.opacity(0.5) : .clear, lineWidth: 1))
         }.buttonStyle(.plain)
     }
     private var sendView: some View {
@@ -166,8 +166,8 @@ private struct PsiTopUp: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
             } label: {
                 Text(copied ? "COPIED ✓" : "COPY ADDRESS").auraLabel(11)
-                    .foregroundStyle(AuraTheme.ember).padding(.horizontal, 20).padding(.vertical, 9)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(AuraTheme.ember.opacity(0.5), lineWidth: 1))
+                    .foregroundStyle(AuraTheme.auraBlue).padding(.horizontal, 20).padding(.vertical, 9)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(AuraTheme.auraBlue.opacity(0.5), lineWidth: 1))
             }.buttonStyle(.plain)
             Text(PsiConfig.network).auraBody(11).multilineTextAlignment(.center)
                 .foregroundStyle(AuraTheme.textDim).frame(maxWidth: 300)
@@ -183,7 +183,7 @@ private struct PsiTopUp: View {
                         Text("$\(a)").font(AuraFont.semi(16))
                             .foregroundStyle(amount == a ? Color.black : AuraTheme.textPrimary)
                             .frame(width: 72, height: 46)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(amount == a ? AuraTheme.ember : Color.white.opacity(0.05)))
+                            .background(RoundedRectangle(cornerRadius: 10).fill(amount == a ? AuraTheme.auraBlue : Color.white.opacity(0.05)))
                     }.buttonStyle(.plain)
                 }
             }
@@ -192,7 +192,7 @@ private struct PsiTopUp: View {
             Button { openURL(PsiConfig.stripeURL) } label: {
                 Text("PAY $\(amount) WITH CARD  →").auraLabel(12).foregroundStyle(.black)
                     .frame(maxWidth: .infinity).padding(.vertical, 13)
-                    .background(RoundedRectangle(cornerRadius: 11).fill(AuraTheme.ember))
+                    .background(RoundedRectangle(cornerRadius: 11).fill(AuraTheme.auraBlue))
             }.buttonStyle(.plain)
         }
     }
@@ -205,7 +205,7 @@ struct PsiExpandedPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("$PSI CREDITS").auraLabel(13).foregroundStyle(AuraTheme.ember)
+                Text("$PSI CREDITS").auraLabel(13).foregroundStyle(AuraTheme.auraBlue)
                 Spacer()
                 Button { close() } label: {
                     Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundStyle(AuraTheme.textDim)
@@ -234,7 +234,7 @@ struct PsiExpandedPanel: View {
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(AuraTheme.bgBase.opacity(0.98))
-                .overlay(RoundedRectangle(cornerRadius: 22).stroke(AuraTheme.ember.opacity(0.35), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 22).stroke(AuraTheme.auraBlue.opacity(0.35), lineWidth: 1))
         )
         .shadow(color: .black.opacity(0.6), radius: 40, x: 0, y: 18)
     }
