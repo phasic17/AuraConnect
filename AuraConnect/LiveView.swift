@@ -102,15 +102,36 @@ private func drawTileChart(_ ctx: GraphicsContext, _ size: CGSize, _ kind: Strin
         let bw = W / CGFloat(vals.count) * 0.62
         let gap = W / CGFloat(vals.count)
         for (i, v) in vals.enumerated() {
-            let vv = v * (0.82 + 0.18 * CGFloat(sin(t * 1.4 + Double(i))))
+            let vv = v * (0.82 + 0.18 * CGFloat(sin(t * 0.42 + Double(i))))   // animation 70% slower
             let x = CGFloat(i) * gap + (gap - bw) / 2
-            let bh = H * vv
+            let bh = H * vv * 0.5                                             // half vertical height
             ctx.fill(Path(roundedRect: CGRect(x: x, y: H - bh, width: bw, height: bh), cornerRadius: 2),
                      with: .color(ac.opacity(0.32 + 0.5 * Double(v))))
             ctx.fill(Path(CGRect(x: x, y: H - bh - 1.5, width: bw, height: 1.5)), with: .color(ac))
         }
         ctx.stroke(Path { p in p.move(to: CGPoint(x: 0, y: H - 0.5)); p.addLine(to: CGPoint(x: W, y: H - 0.5)) },
                    with: .color(ac.opacity(0.35)), lineWidth: 1)
+    } else if kind == "thermal24" {
+        // last-24h puck core temperature trend (small line + area)
+        let temps: [CGFloat] = [76,75,74,74,73,74,76,79,81,83,84,85,86,85,84,83,82,83,84,85,86,84,81,78]
+        let tmin: CGFloat = 70, tmax: CGFloat = 90
+        let n = temps.count
+        var line = Path(); var area = Path()
+        for (i, tp) in temps.enumerated() {
+            let x = W * CGFloat(i) / CGFloat(n - 1)
+            let y = H * (1 - (tp - tmin) / (tmax - tmin))
+            let pt = CGPoint(x: x, y: y)
+            if i == 0 { line.move(to: pt); area.move(to: CGPoint(x: x, y: H)); area.addLine(to: pt) }
+            else { line.addLine(to: pt); area.addLine(to: pt) }
+        }
+        area.addLine(to: CGPoint(x: W, y: H)); area.closeSubpath()
+        ctx.fill(area, with: .linearGradient(Gradient(colors: [ac.opacity(0.28), .clear]), startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 0, y: H)))
+        ctx.stroke(line, with: .color(ac), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+        let lastY = H * (1 - (temps[n-1] - tmin) / (tmax - tmin))
+        let pulse = 0.5 + 0.5 * sin(t * 1.5)
+        ctx.fill(Path(ellipseIn: CGRect(x: W - 7, y: lastY - 3.5, width: 7, height: 7)), with: .color(ac.opacity(0.5 + 0.5 * pulse)))
+        ctx.stroke(Path { p in p.move(to: CGPoint(x: 0, y: H - 0.5)); p.addLine(to: CGPoint(x: W, y: H - 0.5)) },
+                   with: .color(ac.opacity(0.3)), lineWidth: 1)
     } else if kind == "ring" {
         let cx = W / 2, cy = H / 2, r = min(W, H) * 0.40
         for tk in 0..<36 {
@@ -177,18 +198,20 @@ struct ActionTile: View {
 struct NewsTile: View {
     var h: CGFloat
     private let accent = Color(red: 0.98, green: 0.38, blue: 0.34)
-    private let items: [(String, String)] = [
-        ("ContinuumOS flags a critical 48-hour-old flaw in ~13 minutes \u{2014} then declines to exploit it", "Continuum \u{00B7} live challenge"),
-        ("Aura Puck founding reservations are live and converting", "AuraVision \u{00B7} reveal"),
-        ("TONi enters NHS incubation \u{2014} ~18,000 patients", "AuraVision Health \u{00B7} UK"),
-        ("Farsight on-prem appliance: private intelligence, in your rack", "Farsight \u{00B7} enterprise"),
+    private let items: [(String, String, String)] = [
+        ("ContinuumOS flags a critical 48-hour-old flaw in ~13 minutes \u{2014} then declines to exploit it", "Continuum \u{00B7} live", "2m"),
+        ("Aura Puck founding reservations are live and converting", "AuraVision \u{00B7} reveal", "1h"),
+        ("TONi enters NHS incubation \u{2014} ~18,000 patients", "Health \u{00B7} UK", "3h"),
+        ("Farsight on-prem appliance: private intelligence, in your rack", "Farsight \u{00B7} enterprise", "5h"),
+        ("$PSI revenue-reserve: monthly on-market buyback, by rule not discretion", "Tokenomics", "8h"),
     ]
     var body: some View {
         TimelineView(.animation) { tl in
             let tt = tl.date.timeIntervalSinceReferenceDate
-            let i = Int(tt / 5.0) % items.count
+            let hero = Int(tt / 5.0) % items.count
             let blink = 0.4 + 0.6 * (0.5 + 0.5 * sin(tt * 3))
-            VStack(alignment: .leading, spacing: 8) {
+            let sweep = 0.5 + 0.5 * sin(tt * 1.3)
+            VStack(alignment: .leading, spacing: 9) {
                 HStack(spacing: 8) {
                     Text("BREAKING").font(.brand(8)).tracking(1.5).foregroundStyle(.white)
                         .padding(.horizontal, 7).padding(.vertical, 3)
@@ -196,26 +219,48 @@ struct NewsTile: View {
                     Text("LATEST NEWS").font(.brand(9)).tracking(2).foregroundStyle(accent)
                     Spacer()
                     Circle().fill(accent).frame(width: 6, height: 6).opacity(blink)
+                    Text("LIVE").font(.brand(8)).tracking(1.5).foregroundStyle(accent.opacity(blink))
                 }
-                Text(items[i].0).font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.95))
-                    .lineLimit(3).fixedSize(horizontal: false, vertical: true).id(i)
-                Spacer(minLength: 2)
-                HStack {
-                    Text(items[i].1).font(.system(size: 10)).foregroundStyle(.white.opacity(0.5))
+                Rectangle()
+                    .fill(LinearGradient(colors: [accent.opacity(0), accent, accent.opacity(0)], startPoint: .leading, endPoint: .trailing))
+                    .frame(height: 1.5).opacity(0.45 + 0.45 * sweep)
+                Text(items[hero].0).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white.opacity(0.97))
+                    .lineLimit(3).fixedSize(horizontal: false, vertical: true).id(hero)
+                HStack(spacing: 8) {
+                    Text(items[hero].1).font(.system(size: 10)).foregroundStyle(accent.opacity(0.85))
                     Spacer()
+                    Text(items[hero].2 + " ago").font(.system(size: 9)).foregroundStyle(.white.opacity(0.4))
                     HStack(spacing: 4) {
                         ForEach(0..<items.count, id: \.self) { j in
-                            Circle().fill(j == i ? accent : Color.white.opacity(0.22)).frame(width: 5, height: 5)
+                            Circle().fill(j == hero ? accent : Color.white.opacity(0.22)).frame(width: 5, height: 5)
                         }
                     }
                 }
+                Divider().overlay(Color.white.opacity(0.08)).padding(.vertical, 1)
+                VStack(alignment: .leading, spacing: 9) {
+                    ForEach(0..<items.count, id: \.self) { j in
+                        if j != hero {
+                            HStack(alignment: .top, spacing: 8) {
+                                Circle().fill(accent.opacity(0.65)).frame(width: 5, height: 5).padding(.top, 5)
+                                Text(items[j].0).font(.system(size: 11)).foregroundStyle(.white.opacity(0.72)).lineLimit(1)
+                                Spacer(minLength: 4)
+                                Text(items[j].2).font(.system(size: 9)).foregroundStyle(.white.opacity(0.35))
+                            }
+                        }
+                    }
+                }
+                Spacer(minLength: 0)
             }
-            .padding(13).frame(maxWidth: .infinity).frame(height: h, alignment: .top)
-            .background(Color(red: 0.05, green: 0.03, blue: 0.03).opacity(0.34))
+            .padding(14).frame(maxWidth: .infinity).frame(height: h, alignment: .top)
+            .background(
+                LinearGradient(colors: [Color(red: 0.08, green: 0.035, blue: 0.035).opacity(0.5),
+                                        Color(red: 0.03, green: 0.02, blue: 0.03).opacity(0.3)],
+                               startPoint: .top, endPoint: .bottom)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.45), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.5), lineWidth: 1))
             .overlay(CornerTicks(accent: accent))
-            .shadow(color: accent.opacity(0.22), radius: 12)
+            .shadow(color: accent.opacity(0.25), radius: 14)
         }
     }
 }
@@ -350,31 +395,39 @@ struct LiveView: View {
     @State private var revealing = false
     @State private var revealStart = Date()
     @State private var hardened = false
-    @State private var psiExpanded = false
+    @State private var overlay: DashOverlay? = nil
     private let credits = PsiCredits.demo
     private var expandAnim: Animation { .spring(response: 0.6, dampingFraction: 0.84) }
 
     var body: some View {
         ZStack {
             ScrollView { dashboard }
-                .blur(radius: psiExpanded ? 16 : 0)
-                .opacity(psiExpanded ? 0.5 : 1)
-                .allowsHitTesting(!psiExpanded)
+                .blur(radius: overlay != nil ? 16 : 0)
+                .opacity(overlay != nil ? 0.5 : 1)
+                .allowsHitTesting(overlay == nil)
             if revealing { RevealOverlay(start: revealStart).transition(.opacity).zIndex(10) }
-            if psiExpanded {
+            if let ov = overlay {
                 Color.black.opacity(0.4).ignoresSafeArea()
-                    .onTapGesture { withAnimation(expandAnim) { psiExpanded = false } }
+                    .onTapGesture { withAnimation(expandAnim) { overlay = nil } }
                     .zIndex(20)
-                PsiExpandedPanel(credits: credits) { withAnimation(expandAnim) { psiExpanded = false } }
-                    .frame(maxWidth: 740).padding(40)
-                    .onHover { inside in if !inside { withAnimation(expandAnim) { psiExpanded = false } } }
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.92).combined(with: .opacity),
-                        removal: .scale(scale: 0.96).combined(with: .opacity)))
-                    .zIndex(21)
+                Group {
+                    switch ov {
+                    case .psi:
+                        PsiExpandedPanel(credits: credits) { withAnimation(expandAnim) { overlay = nil } }
+                            .frame(maxWidth: 740)
+                    case .approval(let i):
+                        ApprovalExpandedPanel(item: Approval.demo[i]) { withAnimation(expandAnim) { overlay = nil } }
+                            .frame(maxWidth: 620)
+                    }
+                }
+                .padding(40)
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.92).combined(with: .opacity),
+                    removal: .scale(scale: 0.96).combined(with: .opacity)))
+                .zIndex(21)
             }
         }
-        .animation(expandAnim, value: psiExpanded)
+        .animation(expandAnim, value: overlay)
         .onAppear { tel.start(); scheduleHarden(); if bt.isConnected { fire() } }
         .onDisappear { tel.stop() }
         .onChange(of: bt.isConnected) { _, now in if now { fire() } }
@@ -406,18 +459,18 @@ struct LiveView: View {
             .assemble(0, 8, assembleToken)
             HStack(alignment: .top, spacing: 16) {
                 VStack(spacing: 16) {
-                    PsiCollapsedTile(credits: credits) { h in if h { withAnimation(expandAnim) { psiExpanded = true } } }
-                    ActionTile(t: "SIGNALS", accent: CY, big: "3 NEW", sub: "2 flagged for you \u{00B7} Decoder replied", kind: "spark", h: 146, ph: 0.3).assemble(1, 8, assembleToken)
-                    ActionTile(t: "MODEL WATCH", accent: VI, big: "\(tm?.models ?? 0) RESIDENT", sub: "glm-air \u{00B7} on-device \u{00B7} 0 errors", kind: "spark", h: 246, ph: 0.9).assemble(2, 8, assembleToken)
+                    PsiCollapsedTile(credits: credits) { withAnimation(expandAnim) { overlay = .psi } }
+                    ActionTile(t: "SIGNALS", accent: CY, big: "3 NEW", sub: "2 flagged for you \u{00B7} Decoder replied", kind: "spark", h: 206, ph: 0.3).assemble(1, 8, assembleToken)
+                }
+                VStack(spacing: 16) {
+                    NewsTile(h: 320).assemble(8, 9, assembleToken)
+                    ApprovalsTile(h: 240) { i in withAnimation(expandAnim) { overlay = .approval(i) } }
+                        .assemble(4, 8, assembleToken)
                 }
                 VStack(spacing: 16) {
                     ActionTile(t: "PUCK FLEET", accent: GN, big: bt.isConnected ? "1 / 1 ONLINE" : "0 / 1", sub: bt.isConnected ? "Aura Puck \u{00B7} secure link" : "scanning\u{2026}", kind: "dots", h: 118, ph: 1.5).assemble(3, 8, assembleToken)
-                    NewsTile(h: 150).assemble(8, 9, assembleToken)
-                    ActionTile(t: "APPROVALS", accent: MG, big: "2 PENDING", sub: "ship-gate review \u{00B7} your call", kind: "ring", h: 116, ph: 2.1).assemble(4, 8, assembleToken)
-                }
-                VStack(spacing: 16) {
                     ActionTile(t: "ON-DEVICE", accent: OKGREEN, big: teleMem(tm), sub: "\(tm?.models ?? 0) models \u{00B7} AES link \u{00B7} encrypted", kind: "bars", h: 204, ph: 2.7).assemble(5, 8, assembleToken)
-                    ActionTile(t: "THERMAL", accent: OR, big: teleTemp(tm), sub: "puck core temperature", kind: "ring", h: 150, ph: 3.3).assemble(6, 8, assembleToken)
+                    ActionTile(t: "THERMAL", accent: OR, big: teleTemp(tm), sub: "last 24h \u{00B7} puck core \u{00B0}C", kind: "thermal24", h: 176, ph: 3.3).assemble(6, 8, assembleToken)
                 }
             }
             BackupTile(bt: bt)

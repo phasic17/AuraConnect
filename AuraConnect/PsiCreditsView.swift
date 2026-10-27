@@ -62,6 +62,20 @@ struct PsiGauge: View {
     }
 }
 
+// MARK: - $PSI coin badge (currency mark in front of the balance)
+struct PsiCoinBadge: View {
+    var size: CGFloat = 20
+    var body: some View {
+        ZStack {
+            Circle().fill(RadialGradient(gradient: Gradient(colors: [Color(red: 0.16, green: 0.12, blue: 0.05), Color(red: 0.07, green: 0.055, blue: 0.03)]), center: .center, startRadius: 0, endRadius: size / 2))
+            Circle().stroke(LinearGradient(colors: [AuraTheme.warnAmber, AuraTheme.auraBlueDeep], startPoint: .top, endPoint: .bottom), lineWidth: max(1.4, size * 0.085))
+            Text("\u{03A8}").font(.system(size: size * 0.64, weight: .bold)).foregroundStyle(AuraTheme.warnAmber)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: AuraTheme.warnAmber.opacity(0.4), radius: size * 0.12)
+    }
+}
+
 // MARK: - Sparkline
 private struct Sparkline: View {
     var values: [Double]
@@ -83,7 +97,7 @@ private struct Sparkline: View {
 // MARK: - Collapsed tile (grid state) — hover expands
 struct PsiCollapsedTile: View {
     var credits: PsiCredits
-    var onHover: (Bool) -> Void
+    var onOpen: () -> Void
     @State private var hovering = false
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -94,8 +108,11 @@ struct PsiCollapsedTile: View {
             }
             ZStack {
                 PsiGauge(frac: credits.fracLeft, lineWidth: 12).frame(width: 130, height: 130)
-                VStack(spacing: 2) {
-                    Text(psiFmt(credits.remaining)).font(AuraFont.semi(28)).foregroundStyle(AuraTheme.textPrimary)
+                VStack(spacing: 3) {
+                    HStack(spacing: 6) {
+                        PsiCoinBadge(size: 20)
+                        Text(psiFmt(credits.remaining)).font(AuraFont.semi(26)).foregroundStyle(AuraTheme.textPrimary)
+                    }
                     Text("$PSI LEFT").auraLabel(9).foregroundStyle(AuraTheme.textDim)
                 }
             }
@@ -106,20 +123,19 @@ struct PsiCollapsedTile: View {
                 stat("BALANCE", psiFmt(credits.held))
             }
             Sparkline(values: credits.usage7d).frame(height: 26).opacity(0.9)
-            Text(hovering ? "release to top up" : "hover to top up")
-                .auraBody(11).foregroundStyle(AuraTheme.textFaint)
+            Text("click to top up")
+                .auraLabel(10).foregroundStyle(hovering ? AuraTheme.auraBlue : AuraTheme.textFaint)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
         .auraGlass(corner: 18)
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(AuraTheme.auraBlue.opacity(hovering ? 0.5 : 0.18), lineWidth: 1)
+                .stroke(AuraTheme.auraBlue.opacity(hovering ? 0.6 : 0.2), lineWidth: 1)
         )
         .scaleEffect(hovering ? 1.015 : 1.0)
-        .onHover { h in
-            hovering = h
-            onHover(h)
-        }
+        .contentShape(Rectangle())
+        .onTapGesture { onOpen() }
+        .onHover { hovering = $0 }
     }
     private func stat(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -219,8 +235,11 @@ struct PsiExpandedPanel: View {
                 VStack(spacing: 16) {
                     ZStack {
                         PsiGauge(frac: credits.fracLeft, lineWidth: 18).frame(width: 220, height: 220)
-                        VStack(spacing: 4) {
-                            Text(psiFmt(credits.remaining)).font(AuraFont.semi(44)).foregroundStyle(AuraTheme.textPrimary)
+                        VStack(spacing: 5) {
+                            HStack(spacing: 9) {
+                                PsiCoinBadge(size: 34)
+                                Text(psiFmt(credits.remaining)).font(AuraFont.semi(42)).foregroundStyle(AuraTheme.textPrimary)
+                            }
                             Text("$PSI REMAINING").auraLabel(11).foregroundStyle(AuraTheme.textDim)
                         }
                     }
