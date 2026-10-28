@@ -476,8 +476,8 @@ struct LiveView: View {
                 }
                 .frame(width: colW)
                 // column 3 (20%) — the Mind, full-height conversation (puck + your Mac mic)
-                FloatingTile(title: "THE MIND \u{2014} LIVE CONVERSATION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
-                    MindLive(chat: tm?.chat ?? [], demo: tel.stream, youLive: voice.transcript, auraLive: voice.replyText)
+                FloatingTile(title: "THE CONTINUUM \u{2014} LIVE CONVERSATION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
+                    ContinuumPanel(chat: tm?.chat ?? [], demo: tel.stream, voice: voice)
                 }
                 .frame(width: mindW)
                 .frame(height: 656)
@@ -494,6 +494,38 @@ struct LiveView: View {
                 .assemble(7, 8, assembleToken)
         }
         .padding(16)
+    }
+}
+
+struct ContinuumPanel: View {
+    var chat: [(who: String, text: String)]
+    var demo: [LiveTelemetry.StreamLine]
+    @ObservedObject var voice: VoiceManager
+    @State private var draft = ""
+    var body: some View {
+        VStack(spacing: 0) {
+            MindLive(chat: chat, demo: demo, youLive: voice.transcript, auraLive: voice.replyText)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack(spacing: 8) {
+                TextField("Type to Aura\u{2026}", text: $draft)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .onSubmit { send() }
+                    .padding(.horizontal, 11).padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.07)))
+                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.white.opacity(0.12), lineWidth: 1))
+                Button { send() } label: {
+                    Image(systemName: "arrow.up.circle.fill").font(.system(size: 22)).foregroundStyle(EMBER)
+                }.buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+        }
+    }
+    private func send() {
+        let t = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        voice.sendTyped(t); draft = ""
     }
 }
 

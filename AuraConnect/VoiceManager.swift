@@ -183,6 +183,13 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
         }
     }
     func gotReplyText(_ r: String) { replyText = r }
+    // Typed input from the Continuum tile — shows as "You:" and routes to the brain.
+    func sendTyped(_ t: String) {
+        let s = t.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !s.isEmpty else { return }
+        transcript = s
+        converse(s)
+    }
     func playVoiceData(_ d: Data) {
         awaitingVoice = false
         endListen()
