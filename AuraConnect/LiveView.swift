@@ -391,7 +391,6 @@ struct FloatingTile<Content: View>: View {
 struct LiveView: View {
     var assembleToken: Int = 0
     @ObservedObject var voice: VoiceManager
-    @State private var dashW: CGFloat = 1100
     @EnvironmentObject var bt: BluetoothManager
     @StateObject private var tel = LiveTelemetry()
     @State private var revealing = false
@@ -455,42 +454,40 @@ struct LiveView: View {
     private func teleMem(_ t: PuckTelemetry?) -> String { if let u = t?.memUsed, let m = t?.memTotal { return "\(String(format: "%.1f", u)) / \(Int(m)) GB" }; return "\u{2014}" }
     private var dashboard: some View {
         let tm = bt.telemetry
-        let usable = max(320, dashW - 32)
-        let colW = usable * 0.375
-        let mindW = usable * 0.25
         return VStack(spacing: 16) {
-            HStack(alignment: .top, spacing: 16) {
-                // column 1 (40%) — $PSI balance (upper-left) + action items
-                VStack(spacing: 16) {
-                    PsiCollapsedTile(credits: credits) { withAnimation(expandAnim) { overlay = .psi } }
-                    ApprovalsTile(h: 330) { i in withAnimation(expandAnim) { overlay = .approval(i) } }
-                        .assemble(4, 8, assembleToken)
+            GeometryReader { geo in
+                let usable = max(320, geo.size.width - 32)
+                let colW = usable * 0.375
+                let mindW = usable * 0.25
+                HStack(alignment: .top, spacing: 16) {
+                    // column 1 (37.5%) — $PSI balance (upper-left) + action items
+                    VStack(spacing: 16) {
+                        PsiCollapsedTile(credits: credits) { withAnimation(expandAnim) { overlay = .psi } }
+                        ApprovalsTile(h: 300) { i in withAnimation(expandAnim) { overlay = .approval(i) } }
+                            .assemble(4, 8, assembleToken)
+                    }
+                    .frame(width: colW)
+                    // column 2 (37.5%) — shop + privacy + encrypted backup (in-column)
+                    VStack(spacing: 16) {
+                        ShopTile(h: 318) { withAnimation(expandAnim) { overlay = .shop } }
+                            .assemble(5, 8, assembleToken)
+                        PrivacyTile(h: 222).assemble(3, 8, assembleToken)
+                        BackupTile(bt: bt)
+                            .assemble(7, 8, assembleToken)
+                    }
+                    .frame(width: colW)
+                    // column 3 (25%) — the Continuum, full-height conversation (puck + your Mac mic)
+                    FloatingTile(title: "THE CONTINUUM \u{2014} LIVE CONVERSATION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
+                        ContinuumPanel(chat: tm?.chat ?? [], demo: tel.stream, voice: voice)
+                    }
+                    .frame(width: mindW)
+                    .frame(height: 656)
+                    .clipped()
+                    .assemble(0, 8, assembleToken)
                 }
-                .frame(width: colW)
-                // column 2 (40%) — shop + encrypted backup (in-column, not full-width)
-                VStack(spacing: 16) {
-                    ShopTile(h: 318) { withAnimation(expandAnim) { overlay = .shop } }
-                        .assemble(5, 8, assembleToken)
-                    PrivacyTile(h: 222).assemble(3, 8, assembleToken)
-                    BackupTile(bt: bt)
-                        .assemble(7, 8, assembleToken)
-                }
-                .frame(width: colW)
-                // column 3 (20%) — the Continuum, full-height conversation (puck + your Mac mic)
-                FloatingTile(title: "THE CONTINUUM \u{2014} LIVE CONVERSATION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
-                    ContinuumPanel(chat: tm?.chat ?? [], demo: tel.stream, voice: voice)
-                }
-                .frame(width: mindW)
-                .frame(height: 656)
-                .clipped()
-                .assemble(0, 8, assembleToken)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(GeometryReader { g in
-                Color.clear
-                    .onAppear { dashW = g.size.width }
-                    .onChange(of: g.size.width) { _, w in dashW = w }
-            })
+            .frame(height: 700)
         }
         .padding(16)
     }
