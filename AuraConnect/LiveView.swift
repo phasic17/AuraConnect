@@ -471,6 +471,7 @@ struct LiveView: View {
                 VStack(spacing: 16) {
                     ShopTile(h: 318) { withAnimation(expandAnim) { overlay = .shop } }
                         .assemble(5, 8, assembleToken)
+                    PrivacyTile(h: 222).assemble(3, 8, assembleToken)
                     BackupTile(bt: bt)
                         .assemble(7, 8, assembleToken)
                 }
@@ -551,6 +552,61 @@ struct ContinuumPanel: View {
         let t = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return }
         voice.sendTyped(t); draft = ""
+    }
+}
+
+// data pulled inward and HELD at the room's edge — nothing escapes (continuum-mark meaning)
+private func drawPrivacy(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double, _ ac: Color) {
+    let cx = Double(size.width) / 2, cy = Double(size.height) / 2
+    let ringR = Double(min(size.width, size.height)) * 0.34
+    ctx.stroke(Path(ellipseIn: CGRect(x: cx - ringR, y: cy - ringR, width: ringR * 2, height: ringR * 2)),
+               with: .color(ac.opacity(0.5)), style: StrokeStyle(lineWidth: 1.4, dash: [4, 4]))
+    ctx.stroke(Path(ellipseIn: CGRect(x: cx - ringR - 6, y: cy - ringR - 6, width: ringR * 2 + 12, height: ringR * 2 + 12)),
+               with: .color(ac.opacity(0.14)), lineWidth: 1)
+    let n = 30
+    let outer = ringR + Double(size.width) * 0.7
+    for i in 0..<n {
+        let ang = Double(i) / Double(n) * 2 * .pi + Double(i) * 0.8
+        let phase = (t * 0.32 + Double(i) * 0.093).truncatingRemainder(dividingBy: 1.0)
+        let r = outer + (ringR - outer) * phase
+        let x = cx + r * cos(ang), y = cy + r * sin(ang)
+        let a = phase < 0.86 ? 0.65 : max(0, (1 - (phase - 0.86) / 0.14)) * 0.65
+        let sz = 2.2
+        ctx.fill(Path(ellipseIn: CGRect(x: x - sz, y: y - sz, width: sz * 2, height: sz * 2)), with: .color(ac.opacity(a)))
+    }
+    ctx.fill(Path(ellipseIn: CGRect(x: cx - 3, y: cy - 3, width: 6, height: 6)), with: .color(ac))
+}
+
+struct PrivacyTile: View {
+    var h: CGFloat
+    private let ac = Color(red: 0.30, green: 0.92, blue: 0.66)
+    var body: some View {
+        TimelineView(.animation) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text("PRIVACY \u{00B7} FIREWALL").font(.brand(9)).tracking(1.8).foregroundStyle(ac)
+                    Spacer()
+                    Image(systemName: "lock.shield.fill").font(.system(size: 10)).foregroundStyle(ac)
+                }
+                ZStack {
+                    Canvas { ctx, size in drawPrivacy(ctx, size, t, ac) }
+                    VStack(spacing: 1) {
+                        Text("0").font(.brand(30)).foregroundStyle(.white)
+                        Text("BYTES \u{2192} CLOUD").font(.brand(8)).tracking(1.5).foregroundStyle(.white.opacity(0.6))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text("nothing left the room today \u{00B7} verified on-device")
+                    .font(.system(size: 9)).foregroundStyle(.white.opacity(0.5))
+            }
+            .padding(13).frame(maxWidth: .infinity).frame(height: h)
+            .background(Color(red: 0.02, green: 0.04, blue: 0.032).opacity(0.4))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(ac.opacity(0.4), lineWidth: 1))
+            .overlay(CornerTicks(accent: ac))
+            .shadow(color: ac.opacity(0.22), radius: 12)
+        }
     }
 }
 
