@@ -456,8 +456,8 @@ struct LiveView: View {
     private var dashboard: some View {
         let tm = bt.telemetry
         let usable = max(320, dashW - 32)
-        let colW = usable * 0.40
-        let mindW = usable * 0.20
+        let colW = usable * 0.375
+        let mindW = usable * 0.25
         return VStack(spacing: 16) {
             HStack(alignment: .top, spacing: 16) {
                 // column 1 (40%) — $PSI balance (upper-left) + action items
