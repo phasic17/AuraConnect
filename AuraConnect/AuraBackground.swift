@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 import Foundation
 
-let BUILD_TAG = "v40"
+let BUILD_TAG = "v41"
 private let BG_HOT = Color(red: 1.0, green: 0.92, blue: 0.72)
 
 enum WorldMap {

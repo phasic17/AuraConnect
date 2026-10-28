@@ -460,22 +460,22 @@ struct LiveView: View {
         let mindW = usable * 0.20
         return VStack(spacing: 16) {
             HStack(alignment: .top, spacing: 16) {
-                // column 1 (40%) — $PSI balance (upper-left) + approvals
+                // column 1 (40%) — $PSI balance (upper-left) + action items
                 VStack(spacing: 16) {
                     PsiCollapsedTile(credits: credits) { withAnimation(expandAnim) { overlay = .psi } }
-                    ApprovalsTile(h: 276) { i in withAnimation(expandAnim) { overlay = .approval(i) } }
+                    ApprovalsTile(h: 330) { i in withAnimation(expandAnim) { overlay = .approval(i) } }
                         .assemble(4, 8, assembleToken)
                 }
                 .frame(width: colW)
-                // column 2 (40%) — reservations + shop + follow-ups
+                // column 2 (40%) — shop + encrypted backup (in-column, not full-width)
                 VStack(spacing: 16) {
-                    ActionTile(t: "RESERVATIONS", accent: CY, big: "148 UNITS", sub: "reserved \u{00B7} +4 today \u{00B7} Onyx-led", kind: "spark", h: 170, ph: 0.3).assemble(1, 8, assembleToken)
                     ShopTile(h: 318) { withAnimation(expandAnim) { overlay = .shop } }
                         .assemble(5, 8, assembleToken)
-                    ActionTile(t: "FOLLOW-UPS", accent: MG, big: "3 WAITING", sub: "2 investors \u{00B7} 1 press \u{00B7} oldest 2d", kind: "ring", h: 150, ph: 2.1).assemble(2, 8, assembleToken)
+                    BackupTile(bt: bt)
+                        .assemble(7, 8, assembleToken)
                 }
                 .frame(width: colW)
-                // column 3 (20%) — the Mind, full-height conversation (puck + your Mac mic)
+                // column 3 (20%) — the Continuum, full-height conversation (puck + your Mac mic)
                 FloatingTile(title: "THE CONTINUUM \u{2014} LIVE CONVERSATION", energy: tel.mindEnergy, phase: 0, hardened: hardened) {
                     ContinuumPanel(chat: tm?.chat ?? [], demo: tel.stream, voice: voice)
                 }
@@ -490,8 +490,6 @@ struct LiveView: View {
                     .onAppear { dashW = g.size.width }
                     .onChange(of: g.size.width) { _, w in dashW = w }
             })
-            BackupTile(bt: bt)
-                .assemble(7, 8, assembleToken)
         }
         .padding(16)
     }
@@ -504,8 +502,28 @@ struct ContinuumPanel: View {
     @State private var draft = ""
     var body: some View {
         VStack(spacing: 0) {
-            MindLive(chat: chat, demo: demo, youLive: voice.transcript, auraLive: voice.replyText)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 7) {
+                        if chat.isEmpty && voice.history.isEmpty && voice.transcript.isEmpty {
+                            ForEach(demo) { l in
+                                Text(l.text).font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary).italic()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        ForEach(Array(chat.enumerated()), id: \.offset) { pair in line(pair.element.who, pair.element.text) }
+                        ForEach(voice.history) { h in line(h.who, h.text) }
+                        if !voice.transcript.isEmpty { line("You", voice.transcript) }
+                        Color.clear.frame(height: 1).id("BOTTOM")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
+                }
+                .onChange(of: voice.history.count) { _, _ in withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("BOTTOM", anchor: .bottom) } }
+                .onChange(of: voice.transcript) { _, _ in proxy.scrollTo("BOTTOM", anchor: .bottom) }
+                .onAppear { proxy.scrollTo("BOTTOM", anchor: .bottom) }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack(spacing: 8) {
                 TextField("Type to Aura\u{2026}", text: $draft)
                     .textFieldStyle(.plain)
@@ -521,6 +539,13 @@ struct ContinuumPanel: View {
             }
             .padding(.horizontal, 12).padding(.vertical, 10)
         }
+    }
+    private func line(_ who: String, _ text: String) -> some View {
+        let isAura = who.lowercased() == "aura"
+        return (Text(isAura ? "Aura: " : (who + ": ")).foregroundColor(isAura ? EMBER : .white.opacity(0.92))
+            + Text(text).foregroundColor(.white.opacity(0.8)))
+            .font(.system(size: 12, design: .monospaced))
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
     private func send() {
         let t = draft.trimmingCharacters(in: .whitespacesAndNewlines)

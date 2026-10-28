@@ -12,6 +12,7 @@ struct Approval {
     let category: String
     let age: String
     let brief: String
+    var approvable: Bool = true
     static let demo: [Approval] = [
         .init(title: "Ship: $PSI revenue-reserve buyback (production)", category: "SHIP-GATE", age: "12m",
               brief: "Enable the automated monthly on-market $PSI buyback into the locked ecosystem reserve \u{2014} by rule, not discretion (TWAP). Code reviewed, dry-run clean on testnet. Fully reversible: pausable via the same flag. Requests production enable."),
@@ -21,6 +22,12 @@ struct Approval {
               brief: "Short X post marking the move from Founders\u{2019} pricing to standard. No fabricated numbers; links the preorder card. Scheduled, not sent \u{2014} your call to release."),
         .init(title: "Approve: Farsight quote \u{2014} Katten legal pilot", category: "DEAL", age: "4h",
               brief: "On-prem Farsight appliance quote for the Katten legal pilot (privilege / ABA wedge). Scoped, honest capability claim only. Needs your sign-off before it reaches the client."),
+        .init(title: "Clare Bronfman \u{2014} share kit sent", category: "FOLLOW-UP", age: "2h",
+              brief: "Share kit sent; awaiting her network intros. Nudge if it's quiet by tomorrow.", approvable: false),
+        .init(title: "Volker Lempert \u{2014} founder confirmation", category: "FOLLOW-UP", age: "3h",
+              brief: "Confirmation sent, awaiting his reply. He flagged a \u{2018}different\u{2019} confirmation \u{2014} watch for it.", approvable: false),
+        .init(title: "Yves (PAIR) \u{2014} quarterly update", category: "FOLLOW-UP", age: "1w",
+              brief: "Early backer; quarterly update is due.", approvable: false),
     ]
 }
 
@@ -33,9 +40,9 @@ struct ApprovalsTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack {
-                Text("APPROVALS").font(.brand(9)).tracking(1.8).foregroundStyle(MGC)
+                Text("ACTION ITEMS").font(.brand(9)).tracking(1.8).foregroundStyle(MGC)
                 Spacer()
-                Text("\(Approval.demo.count) PENDING").font(.brand(9)).tracking(1).foregroundStyle(.white.opacity(0.7))
+                Text("\(Approval.demo.count) ITEMS").font(.brand(9)).tracking(1).foregroundStyle(.white.opacity(0.7))
                 Circle().fill(MGC).frame(width: 6, height: 6).shadow(color: MGC, radius: 4)
             }
             ForEach(Array(Approval.demo.enumerated()), id: \.offset) { idx, a in
@@ -86,19 +93,28 @@ struct ApprovalExpandedPanel: View {
                 .fixedSize(horizontal: false, vertical: true)
             Text(item.brief).font(.system(size: 14)).foregroundStyle(.white.opacity(0.76)).lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 12) {
+            if item.approvable {
+                HStack(spacing: 12) {
+                    Button { close() } label: {
+                        Text("APPROVE").font(.brand(12)).tracking(1).foregroundStyle(.black)
+                            .frame(maxWidth: .infinity).padding(.vertical, 13)
+                            .background(RoundedRectangle(cornerRadius: 11).fill(Color(red: 0.36, green: 0.92, blue: 0.62)))
+                    }.buttonStyle(.plain)
+                    Button { close() } label: {
+                        Text("DECLINE").font(.brand(12)).tracking(1).foregroundStyle(.white.opacity(0.8))
+                            .frame(maxWidth: .infinity).padding(.vertical, 13)
+                            .overlay(RoundedRectangle(cornerRadius: 11).stroke(.white.opacity(0.22), lineWidth: 1))
+                    }.buttonStyle(.plain)
+                }
+                .padding(.top, 4)
+            } else {
                 Button { close() } label: {
-                    Text("APPROVE").font(.brand(12)).tracking(1).foregroundStyle(.black)
+                    Text("MARK HANDLED").font(.brand(12)).tracking(1).foregroundStyle(.black)
                         .frame(maxWidth: .infinity).padding(.vertical, 13)
-                        .background(RoundedRectangle(cornerRadius: 11).fill(Color(red: 0.36, green: 0.92, blue: 0.62)))
+                        .background(RoundedRectangle(cornerRadius: 11).fill(MGC))
                 }.buttonStyle(.plain)
-                Button { close() } label: {
-                    Text("DECLINE").font(.brand(12)).tracking(1).foregroundStyle(.white.opacity(0.8))
-                        .frame(maxWidth: .infinity).padding(.vertical, 13)
-                        .overlay(RoundedRectangle(cornerRadius: 11).stroke(.white.opacity(0.22), lineWidth: 1))
-                }.buttonStyle(.plain)
+                .padding(.top, 4)
             }
-            .padding(.top, 4)
         }
         .padding(28)
         .background(
@@ -107,5 +123,53 @@ struct ApprovalExpandedPanel: View {
                 .overlay(RoundedRectangle(cornerRadius: 22).stroke(MGC.opacity(0.4), lineWidth: 1))
         )
         .shadow(color: .black.opacity(0.6), radius: 40, x: 0, y: 18)
+    }
+}
+
+// MARK: - Follow-ups (detailed list)
+struct FollowUp {
+    let who: String; let what: String; let age: String
+    static let demo: [FollowUp] = [
+        .init(who: "Clare Bronfman", what: "Share kit sent \u{2014} awaiting her network intros", age: "2h"),
+        .init(who: "Decoder (press)", what: "First send clean \u{2014} Wetjen follow-up queued", age: "1d"),
+        .init(who: "Volker Lempert", what: "Founder confirmation sent \u{2014} awaiting reply", age: "3h"),
+        .init(who: "Katten (legal)", what: "Farsight pilot quote \u{2014} pending your sign-off", age: "4h"),
+        .init(who: "Yves \u{2014} PAIR", what: "Early backer \u{2014} quarterly update due", age: "1w"),
+    ]
+}
+private let FUC = Color(red: 0.42, green: 0.85, blue: 1.0)
+
+struct FollowUpsTile: View {
+    var h: CGFloat
+    var body: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack {
+                Text("FOLLOW-UPS").font(.brand(9)).tracking(1.8).foregroundStyle(FUC)
+                Spacer()
+                Text("\(FollowUp.demo.count) OPEN").font(.brand(9)).tracking(1).foregroundStyle(.white.opacity(0.7))
+                Circle().fill(FUC).frame(width: 6, height: 6).shadow(color: FUC, radius: 4)
+            }
+            ForEach(Array(FollowUp.demo.enumerated()), id: \.offset) { _, f in
+                HStack(alignment: .top, spacing: 9) {
+                    Circle().fill(FUC.opacity(0.7)).frame(width: 6, height: 6).padding(.top, 5)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(f.who).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(.white.opacity(0.92))
+                            Spacer()
+                            Text(f.age).font(.system(size: 9)).foregroundStyle(.white.opacity(0.4))
+                        }
+                        Text(f.what).font(.system(size: 10)).foregroundStyle(.white.opacity(0.62))
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14).frame(maxWidth: .infinity).frame(height: h, alignment: .top)
+        .background(Color(red: 0.03, green: 0.04, blue: 0.055).opacity(0.36))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(FUC.opacity(0.4), lineWidth: 1))
+        .overlay(CornerTicks(accent: FUC))
+        .shadow(color: FUC.opacity(0.22), radius: 12)
     }
 }

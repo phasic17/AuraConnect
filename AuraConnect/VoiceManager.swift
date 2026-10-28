@@ -6,6 +6,8 @@ import AppKit
 
 enum AuraPermState { case unknown, requesting, granted, denied }
 
+struct ChatLine: Identifiable { let id = UUID(); let who: String; let text: String }
+
 final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDelegate {
     weak var bt: BluetoothManager?
     override init() { super.init(); synth.delegate = self }
@@ -13,6 +15,7 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
     @Published var speaking = false
     @Published var locked = false
     @Published var transcript = ""
+    @Published var history: [ChatLine] = []
     @Published var level: Double = 0
     @Published var permState: AuraPermState = .unknown
     private var preferOnDevice = true
@@ -166,6 +169,8 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
     @Published var replyText: String = ""
     private var awaitingVoice = false
     private func converse(_ t: String) {
+        history.append(ChatLine(who: "You", text: t))
+        transcript = ""
         if let bt = bt, bt.isConnected {
             speaking = true   // thinking — the puck brain is answering
             awaitingVoice = true
@@ -182,7 +187,7 @@ final class VoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVS
             play(acks.randomElement() ?? "aura_ack1", fallback: "I'm on it.")
         }
     }
-    func gotReplyText(_ r: String) { replyText = r }
+    func gotReplyText(_ r: String) { replyText = r; if !r.isEmpty { history.append(ChatLine(who: "Aura", text: r)) } }
     // Typed input from the Continuum tile — shows as "You:" and routes to the brain.
     func sendTyped(_ t: String) {
         let s = t.trimmingCharacters(in: .whitespacesAndNewlines)
