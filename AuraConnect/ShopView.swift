@@ -37,22 +37,21 @@ struct ShopTile: View {
                     Spacer()
                     Image(systemName: "cart.fill").font(.system(size: 10)).foregroundStyle(SHOP_AC)
                 }
-                let cols = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
-                LazyVGrid(columns: cols, spacing: 8) {
+                let cols = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+                LazyVGrid(columns: cols, spacing: 10) {
                     ForEach(0..<ShopItem.demo.count, id: \.self) { i in
                         let it = ShopItem.demo[i]
-                        VStack(spacing: 4) {
-                            shopImage(it.image).resizable().scaledToFit().frame(height: 42)
-                            Text(it.name).font(.system(size: 8.5, weight: .medium)).foregroundStyle(.white.opacity(0.8)).lineLimit(1)
+                        VStack(spacing: 6) {
+                            shopImage(it.image).resizable().scaledToFit().frame(maxWidth: .infinity).frame(height: 76)
+                            Text(it.name).font(.system(size: 10, weight: .medium)).foregroundStyle(.white.opacity(0.85)).lineLimit(1)
                         }
-                        .frame(maxWidth: .infinity).padding(.vertical, 7)
-                        .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.04)))
+                        .frame(maxWidth: .infinity).padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05)))
                     }
                 }
-                Text("tap to purchase \u{2014} $PSI or card").font(.system(size: 9)).tracking(0.5)
-                    .foregroundStyle(hovering ? SHOP_AC : .white.opacity(0.4))
+                Text("tap to purchase \u{2014} $PSI or card").font(.system(size: 9.5)).tracking(0.5)
+                    .foregroundStyle(hovering ? SHOP_AC : .white.opacity(0.42))
                     .frame(maxWidth: .infinity, alignment: .center)
-                Spacer(minLength: 0)
             }
             .padding(13).frame(maxWidth: .infinity).frame(height: h, alignment: .top)
             .background(Color(red: 0.04, green: 0.032, blue: 0.02).opacity(0.4))
@@ -96,7 +95,7 @@ private struct ProductCard: View {
     @State private var copied = false
     var body: some View {
         VStack(spacing: 10) {
-            shopImage(item.image).resizable().scaledToFit().frame(height: 86)
+            shopImage(item.image).resizable().scaledToFit().frame(maxWidth: .infinity).frame(height: 128)
             Text(item.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
             Text(item.tagline).font(.system(size: 10.5)).foregroundStyle(.white.opacity(0.55)).multilineTextAlignment(.center).lineLimit(2)
                 .frame(height: 28)

@@ -67,7 +67,7 @@ struct ContentView: View {
                         LockButton { withAnimation { voice.lock() } }
                         SeverButton { withAnimation { showVault = true } }
                     }
-                    .padding(.vertical, 14).padding(.trailing, 16).padding(.leading, 246)
+                    .padding(.vertical, 14).padding(.trailing, 24).padding(.leading, 270)
                     Spacer()
                 }
                 .zIndex(50)
@@ -105,7 +105,7 @@ struct ContentView: View {
 
             Group {
                 switch section {
-                case .live:     LiveView(assembleToken: assembleToken)
+                case .live:     LiveView(assembleToken: assembleToken, voice: voice)
                 case .console:  ConsoleView()
                 case .transfer: TransferView()
                 case .updates:  UpdatesView()
